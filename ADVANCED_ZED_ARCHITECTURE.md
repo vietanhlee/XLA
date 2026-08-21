@@ -90,16 +90,16 @@ Trong đó:
 - $\text{logistic}(x \mid \mu, s) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)$.
 - Xử lý biên cho giá trị rời rạc 8-bit (Discrete 8-bit Boundary Handling):
   $$\begin{cases}
-  x = 0 &\implies P(x) = \sigma\left(\frac{0.5 - \mu}{s}\right) \\[6pt]
-  x = 255 &\implies P(x) = 1 - \sigma\left(\frac{254.5 - \mu}{s}\right) \\[6pt]
+  x = 0 &\implies P(x) = \sigma\left(\frac{0.5 - \mu}{s}\right) \\
+  x = 255 &\implies P(x) = 1 - \sigma\left(\frac{254.5 - \mu}{s}\right) \\
   0 < x < 255 &\implies P(x) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)
   \end{cases}$$
 
 **Chi phí mã hóa thực tế (Negative Log-Likelihood - NLL):**
-$$\text{NLL}_{i,j}^{(l)} = -\log_2 P\left(x_{i,j}^{(l)} \;\middle|\; X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
+$$\text{NLL}_{i,j}^{(l)} = -\log_2 P\left(x_{i,j}^{(l)} \mid X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
 
 **Độ hỗn loạn kỳ vọng (Expected Entropy - $H$):**
-$$H_{i,j}^{(l)} = -\sum_{v=0}^{255} P\left(v \;\middle|\; X_{i,j}^{(l)}\right) \log_2 P\left(v \;\middle|\; X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
+$$H_{i,j}^{(l)} = -\sum_{v=0}^{255} P\left(v \mid X_{i,j}^{(l)}\right) \log_2 P\left(v \mid X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
 
 ---
 
