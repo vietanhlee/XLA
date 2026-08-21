@@ -51,7 +51,7 @@ Mô hình **ZED (Zero-shot Entropy-based Detector)** giải quyết bài toán p
 | **$w_k$ (hoặc $\pi_k$)** | $w_k \in (0, 1), \sum w_k = 1$ | **Trọng số hỗn hợp (Mixture Weights)**: Mức độ đóng góp của phân bố thứ $k$. Được tính bằng hàm Softmax từ logits $a_k$: $w_k = \frac{e^{a_k}}{\sum_{j=1}^K e^{a_j}}$. |
 | **$a_k$** | $\mathbb{R}$ | **Logits trọng số** dự đoán bởi mạng CNN cho thành phần thứ $k$. |
 | **$\mu_k$** | $\mathbb{R}$ | **Giá trị kỳ vọng/Trung vị (Location/Mean Parameter)** của phân bố Logistic thứ $k$ tại điểm ảnh. |
-| **$s_k$** | $\mathbb{R}^+$ ($s_k > 0$) | **Độ rộng/Tỷ lệ (Scale Parameter)** của phân bố Logistic thứ $k$. Trong code, dự đoán dưới dạng $\log s_k$ và bị chặn dưới bởi $\text{min\_log\_scale} = -7.0$ để chống bùng nổ số học. |
+| **$s_k$** | $\mathbb{R}^+$ ($s_k > 0$) | **Độ rộng/Tỷ lệ (Scale Parameter)** của phân bố Logistic thứ $k$. Trong code, dự đoán dưới dạng $\log s_k$ và bị chặn dưới bởi `min_log_scale = -7.0` để chống bùng nổ số học. |
 | **$\sigma(z)$** | $\sigma(z) = \frac{1}{1 + e^{-z}}$ | **Hàm Sigmoid**: Chuyển đổi các khoảng phân bố liên tục về xác suất tích lũy CDF của Logistic. |
 | **$P(x_{i,j}^{(l)} \mid X_{i,j}^{(l)})$** | $P \in [0, 1]$ | **Xác suất điều kiện rời rạc** của pixel $x_{i,j}^{(l)}$ cho bởi mô hình nén SReC. |
 | **$v \in \{0, 1, \dots, 255\}$** | $\mathbb{Z}_{\ge 0}$ | **Biến quét 256 mức giá trị cường độ xám/màu**: Dùng để tính tổng chính xác độ hỗn loạn kỳ vọng $H$. |
@@ -165,8 +165,8 @@ $$D^{(l)} = \text{NLL}^{(l)} - H^{(l)}$$
 
 **Quy tắc ra quyết định phân loại:**
 $$\text{Prediction} = \begin{cases}
-\text{Fake (AI-Generated)} & \text{nếu } D^{(0)} > \tau^* \text{ hoặc } |\Delta^{01}| > \tau_{\Delta}^* \\
-\text{Real Image} & \text{ngược lại}
+\text{Fake (AI-Generated)} & \text{if } D^{(0)} > \tau^* \text{ or } |\Delta^{01}| > \tau_{\Delta}^* \\
+\text{Real Image} & \text{otherwise}
 \end{cases}$$
 
 ---
