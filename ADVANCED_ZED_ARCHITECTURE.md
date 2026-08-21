@@ -88,13 +88,18 @@ $$P(x \mid X) = \sum_{k=1}^{K} w_k \cdot \text{logistic}(x \mid \mu_k, s_k)$$
 Trong đó:
 - $w_k = \text{softmax}(a_k)$ là trọng số hỗn hợp ($a_k$ là output logits).
 - $\text{logistic}(x \mid \mu, s) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)$.
-- Với giá trị biên $x = 0 \Rightarrow P(x) = \sigma\left(\frac{0.5 - \mu}{s}\right)$ và $x = 255 \Rightarrow P(x) = 1 - \sigma\left(\frac{254.5 - \mu}{s}\right)$.
+- Xử lý biên cho giá trị rời rạc 8-bit (Discrete 8-bit Boundary Handling):
+  $$\begin{cases}
+  x = 0 &\implies P(x) = \sigma\left(\frac{0.5 - \mu}{s}\right) \\[6pt]
+  x = 255 &\implies P(x) = 1 - \sigma\left(\frac{254.5 - \mu}{s}\right) \\[6pt]
+  0 < x < 255 &\implies P(x) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)
+  \end{cases}$$
 
 **Chi phí mã hóa thực tế (Negative Log-Likelihood - NLL):**
-$$\text{NLL}_{i,j} = -\log_2 P(x_{i,j} \mid X_{i,j}) \quad (\text{đơn vị: bits/pixel})$$
+$$\text{NLL}_{i,j}^{(l)} = -\log_2 P\left(x_{i,j}^{(l)} \;\middle|\; X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
 
-**Độ hỗn loạn kỳ vọng (Expected Entropy - H):**
-$$H_{i,j} = -\sum_{v=0}^{255} P(v \mid X_{i,j}) \log_2 P(v \mid X_{i,j})$$
+**Độ hỗn loạn kỳ vọng (Expected Entropy - $H$):**
+$$H_{i,j}^{(l)} = -\sum_{v=0}^{255} P\left(v \;\middle|\; X_{i,j}^{(l)}\right) \log_2 P\left(v \;\middle|\; X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
 
 ---
 

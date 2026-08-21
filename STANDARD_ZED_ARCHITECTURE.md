@@ -132,11 +132,11 @@ Trong đó:
 - Trọng số hỗn hợp: $w_k = \frac{e^{a_k}}{\sum_{j=1}^K e^{a_j}}$ (với $a_k$ là weight logits).
 - Hàm mật độ rời rạc (Discrete PMF):
   $$\text{logistic}(x \mid \mu, s) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)$$
-- Xử lý biên cho giá trị discrete 8-bit:
+- Xử lý biên cho giá trị rời rạc 8-bit (Discrete 8-bit Boundary Handling):
   $$\begin{cases}
-  x = 0 &\Rightarrow P(x) = \sigma\left(\frac{0.5 - \mu}{s}\right) \\
-  x = 255 &\Rightarrow P(x) = 1 - \sigma\left(\frac{254.5 - \mu}{s}\right) \\
-  0 < x < 255 &\Rightarrow P(x) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)
+  x = 0 &\implies P(x) = \sigma\left(\frac{0.5 - \mu}{s}\right) \\[6pt]
+  x = 255 &\implies P(x) = 1 - \sigma\left(\frac{254.5 - \mu}{s}\right) \\[6pt]
+  0 < x < 255 &\implies P(x) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)
   \end{cases}$$
 
 ---
@@ -144,13 +144,13 @@ Trong đó:
 ### 4.4. Tính Toán NLL và Expected Entropy ($H$)
 
 1. **Chi phí mã hóa thực tế (Negative Log-Likelihood - NLL):**
-   $$\text{NLL}_{i,j}^{(l)} = -\log_2 P(x_{i,j}^{(l)} \mid X_{i,j}^{(l)}) \quad (\text{bits/pixel})$$
+   $$\text{NLL}_{i,j}^{(l)} = -\log_2 P\left(x_{i,j}^{(l)} \;\middle|\; X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
 
-2. **Độ hỗn loạn kỳ vọng (Expected Entropy - H):**
-   $$H_{i,j}^{(l)} = -\sum_{v=0}^{255} P(v \mid X_{i,j}^{(l)}) \log_2 P(v \mid X_{i,j}^{(l)})$$
+2. **Độ hỗn loạn kỳ vọng (Expected Entropy - $H$):**
+   $$H_{i,j}^{(l)} = -\sum_{v=0}^{255} P\left(v \;\middle|\; X_{i,j}^{(l)}\right) \log_2 P\left(v \;\middle|\; X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
 
 3. **Trung bình không gian (Spatial Average):**
-   $$\text{NLL}^{(l)} = \frac{1}{H \cdot W} \sum_{i=1}^H \sum_{j=1}^W \text{NLL}_{i,j}^{(l)}, \quad H^{(l)} = \frac{1}{H \cdot W} \sum_{i=1}^H \sum_{j=1}^W H_{i,j}^{(l)}$$
+   $$\text{NLL}^{(l)} = \frac{1}{H \cdot W} \sum_{i=1}^H \sum_{j=1}^W \text{NLL}_{i,j}^{(l)}, \qquad H^{(l)} = \frac{1}{H \cdot W} \sum_{i=1}^H \sum_{j=1}^W H_{i,j}^{(l)}$$
 
 ---
 
