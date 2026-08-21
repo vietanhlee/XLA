@@ -66,7 +66,7 @@ def train_epoch(
             scaler.step(optimizer)
             scaler.update()
         else:
-            output_dict = model(batch_images, compute_centropy=False)
+            output_dict = model(batch_images, compute_entropy=False)
             loss = output_dict["total_loss"]
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
