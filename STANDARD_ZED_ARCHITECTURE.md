@@ -131,43 +131,64 @@ $$P(x \mid X) = \sum_{k=1}^{K} w_k \cdot \text{logistic}(x \mid \mu_k, s_k)$$
 Trong đó:
 - Trọng số hỗn hợp: $w_k = \frac{e^{a_k}}{\sum_{j=1}^K e^{a_j}}$ (với $a_k$ là weight logits).
 - Hàm mật độ rời rạc (Discrete PMF):
-  $$\text{logistic}(x \mid \mu, s) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)$$
+
+$$
+\text{logistic}(x \mid \mu, s) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)
+$$
+
 - Xử lý biên cho giá trị rời rạc 8-bit (Discrete 8-bit Boundary Handling):
-  $$\begin{cases}
-  x = 0 &\implies P(x) = \sigma\left(\frac{0.5 - \mu}{s}\right) \\
-  x = 255 &\implies P(x) = 1 - \sigma\left(\frac{254.5 - \mu}{s}\right) \\
-  0 < x < 255 &\implies P(x) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)
-  \end{cases}$$
+
+$$
+P(x) = \begin{cases}
+\sigma\left(\frac{0.5 - \mu}{s}\right), & \text{if } x = 0 \\
+1 - \sigma\left(\frac{254.5 - \mu}{s}\right), & \text{if } x = 255 \\
+\sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right), & \text{if } 0 < x < 255
+\end{cases}
+$$
 
 ---
 
 ### 4.4. Tính Toán NLL và Expected Entropy ($H$)
 
-1. **Chi phí mã hóa thực tế (Negative Log-Likelihood - NLL):**
-   $$\text{NLL}_{i,j}^{(l)} = -\log_2 P\left(x_{i,j}^{(l)} \mid X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
+**1. Chi phí mã hóa thực tế (Negative Log-Likelihood - NLL):**
 
-2. **Độ hỗn loạn kỳ vọng (Expected Entropy - $H$):**
-   $$H_{i,j}^{(l)} = -\sum_{v=0}^{255} P\left(v \mid X_{i,j}^{(l)}\right) \log_2 P\left(v \mid X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
+$$
+\text{NLL}_{i,j}^{(l)} = -\log_2 P\left(x_{i,j}^{(l)} \mid X_{i,j}^{(l)}\right) \quad \text{(bits/pixel)}
+$$
 
-3. **Trung bình không gian (Spatial Average):**
-   $$\text{NLL}^{(l)} = \frac{1}{H \cdot W} \sum_{i=1}^H \sum_{j=1}^W \text{NLL}_{i,j}^{(l)}, \qquad H^{(l)} = \frac{1}{H \cdot W} \sum_{i=1}^H \sum_{j=1}^W H_{i,j}^{(l)}$$
+**2. Độ hỗn loạn kỳ vọng (Expected Entropy - $H$):**
+
+$$
+H_{i,j}^{(l)} = -\sum_{v=0}^{255} P\left(v \mid X_{i,j}^{(l)}\right) \log_2 P\left(v \mid X_{i,j}^{(l)}\right) \quad \text{(bits/pixel)}
+$$
+
+**3. Trung bình không gian (Spatial Average):**
+
+$$
+\text{NLL}^{(l)} = \frac{1}{H \cdot W} \sum_{i=1}^H \sum_{j=1}^W \text{NLL}_{i,j}^{(l)}, \qquad H^{(l)} = \frac{1}{H \cdot W} \sum_{i=1}^H \sum_{j=1}^W H_{i,j}^{(l)}
+$$
 
 ---
 
 ### 4.5. Trích Xuất Chỉ Số Quyết Định Zero-Shot ($D^{(0)}, \Delta^{01}$)
 
 Định nghĩa khoảng hẫng chi phí mã hóa (Coding Cost Gap) ở mỗi cấp $l$:
-$$D^{(l)} = \text{NLL}^{(l)} - H^{(l)}$$
+
+$$
+D^{(l)} = \text{NLL}^{(l)} - H^{(l)}
+$$
 
 - **Đặc trưng quyết định cấp 0:** $D^{(0)} = \text{NLL}^{(0)} - H^{(0)}$ và $|D^{(0)}|$
-- **Độ dốc chênh lệch giữa các cấp (Resolution Slope):**
-  $$\Delta^{01} = D^{(0)} - D^{(1)}$$
+- **Độ dốc chênh lệch giữa các cấp (Resolution Slope):** $\Delta^{01} = D^{(0)} - D^{(1)}$
 
 **Quy tắc ra quyết định phân loại:**
-$$\text{Prediction} = \begin{cases}
-\text{Fake (AI-Generated)} & \text{if } D^{(0)} > \tau^* \text{ or } |\Delta^{01}| > \tau_{\Delta}^* \\
-\text{Real Image} & \text{otherwise}
-\end{cases}$$
+
+$$
+\text{Prediction} = \begin{cases}
+\text{Fake (AI-Generated)}, & \text{if } D^{(0)} > \tau^* \text{ or } |\Delta^{01}| > \tau_{\Delta}^* \\
+\text{Real Image}, & \text{otherwise}
+\end{cases}
+$$
 
 ---
 

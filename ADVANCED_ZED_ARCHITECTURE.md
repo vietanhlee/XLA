@@ -86,33 +86,52 @@ Phân bố xác suất của một điểm ảnh $x \in \{0, \dots, 255\}$ đư�
 $$P(x \mid X) = \sum_{k=1}^{K} w_k \cdot \text{logistic}(x \mid \mu_k, s_k)$$
 
 Trong đó:
-- $w_k = \text{softmax}(a_k)$ là trọng số hỗn hợp ($a_k$ là output logits).
-- $\text{logistic}(x \mid \mu, s) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)$.
+- Trọng số hỗn hợp: $w_k = \text{softmax}(a_k)$ ($a_k$ là output logits).
+- Hàm mật độ rời rạc (Discrete PMF):
+
+$$
+\text{logistic}(x \mid \mu, s) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)
+$$
+
 - Xử lý biên cho giá trị rời rạc 8-bit (Discrete 8-bit Boundary Handling):
-  $$\begin{cases}
-  x = 0 &\implies P(x) = \sigma\left(\frac{0.5 - \mu}{s}\right) \\
-  x = 255 &\implies P(x) = 1 - \sigma\left(\frac{254.5 - \mu}{s}\right) \\
-  0 < x < 255 &\implies P(x) = \sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right)
-  \end{cases}$$
+
+$$
+P(x) = \begin{cases}
+\sigma\left(\frac{0.5 - \mu}{s}\right), & \text{if } x = 0 \\
+1 - \sigma\left(\frac{254.5 - \mu}{s}\right), & \text{if } x = 255 \\
+\sigma\left(\frac{x - \mu + 0.5}{s}\right) - \sigma\left(\frac{x - \mu - 0.5}{s}\right), & \text{if } 0 < x < 255
+\end{cases}
+$$
 
 **Chi phí mã hóa thực tế (Negative Log-Likelihood - NLL):**
-$$\text{NLL}_{i,j}^{(l)} = -\log_2 P\left(x_{i,j}^{(l)} \mid X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
+
+$$
+\text{NLL}_{i,j}^{(l)} = -\log_2 P\left(x_{i,j}^{(l)} \mid X_{i,j}^{(l)}\right) \quad \text{(bits/pixel)}
+$$
 
 **Độ hỗn loạn kỳ vọng (Expected Entropy - $H$):**
-$$H_{i,j}^{(l)} = -\sum_{v=0}^{255} P\left(v \mid X_{i,j}^{(l)}\right) \log_2 P\left(v \mid X_{i,j}^{(l)}\right) \quad (\text{bits/pixel})$$
+
+$$
+H_{i,j}^{(l)} = -\sum_{v=0}^{255} P\left(v \mid X_{i,j}^{(l)}\right) \log_2 P\left(v \mid X_{i,j}^{(l)}\right) \quad \text{(bits/pixel)}
+$$
 
 ---
 
 ### 4.2. Phân Tách 2D Haar Wavelet Decomposition (DWT)
 Ma trận bộ lọc Haar 2D thực hiện phân tách kênh không gian $x$ thành 4 băng tần:
 
-$$\begin{aligned}
+$$
+\begin{aligned}
 h_{LL} &= \frac{1}{2}\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}, \quad h_{LH} = \frac{1}{2}\begin{pmatrix} -1 & -1 \\ 1 & 1 \end{pmatrix} \\
 h_{HL} &= \frac{1}{2}\begin{pmatrix} -1 & 1 \\ -1 & 1 \end{pmatrix}, \quad h_{HH} = \frac{1}{2}\begin{pmatrix} 1 & -1 \\ -1 & 1 \end{pmatrix}
-\end{aligned}$$
+\end{aligned}
+$$
 
 Đặc trưng tần số cao (High-Frequency Features):
-$$\text{HF} = \text{Concat}\left(LH, HL, HH\right) \in \mathbb{R}^{B \times 3C \times \frac{H}{2} \times \frac{W}{2}}$$
+
+$$
+\text{HF} = \text{Concat}\left(LH, HL, HH\right) \in \mathbb{R}^{B \times 3C \times \frac{H}{2} \times \frac{W}{2}}
+$$
 
 Đặc trưng tần số cao $\text{HF}$ sau đó được upscale lên độ phân giải mục tiêu $(H, W)$ và nối (concatenate) với đặc trưng không gian $y^{(l+1)}$ để đưa vào mạng CNN.
 
@@ -121,14 +140,19 @@ $$\text{HF} = \text{Concat}\left(LH, HL, HH\right) \in \mathbb{R}^{B \times 3C \
 ### 4.3. Efficient Spatial Cross-Attention
 Để tránh bùng nổ bộ nhớ $O((HW)^2)$ khi $H=W=256$, thuật toán **Efficient Spatial Attention** giảm chiều không gian của Key ($K$) và Value ($V$) thông qua Adaptive Pooling về lưới cố định $16 \times 16$:
 
-$$\begin{aligned}
+$$
+\begin{aligned}
 Q &= \text{Conv}_q(\text{Norm}(X)) \in \mathbb{R}^{B \times d \times (HW)} \\
 K &= \text{Conv}_k(\text{AdaptivePool}_{16 \times 16}(\text{Norm}(X))) \in \mathbb{R}^{B \times d \times 256} \\
 V &= \text{Conv}_v(\text{AdaptivePool}_{16 \times 16}(\text{Norm}(X))) \in \mathbb{R}^{B \times d \times 256}
-\end{aligned}$$
+\end{aligned}
+$$
 
 Ma trận ma sát Attention:
-$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right) V$$
+
+$$
+\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right) V
+$$
 
 *Độ phức tạp bộ nhớ:* Giảm từ **1 TB (nếu dùng Full Attention)** xuống chỉ còn **~16 MB**, cho phép chạy mượt mà trên CPU/GPU phổ thông.
 
@@ -136,12 +160,14 @@ $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right
 
 ### 4.4. Chỉ Số Thống Kê Quyết Định Zero-Shot ($D^{(0)}, \Delta^{01}$)
 Khoảng hẫng chi phí mã hóa (Coding Cost Gap) tại cấp $l$:
-$$D^{(l)} = \text{NLL}^{(l)} - H^{(l)}$$
+
+$$
+D^{(l)} = \text{NLL}^{(l)} - H^{(l)}
+$$
 
 - **Ảnh thật (Real Image):** $NLL^{(0)} \approx H^{(0)} \Rightarrow D^{(0)} \approx 0$ (mô hình dự đoán chính xác phân bố).
 - **Ảnh AI (Synthetic Image):** $NLL^{(0)} > H^{(0)} \Rightarrow D^{(0)} > 0$ (mô hình bị "bất ngờ" bởi phân bố giả).
-- **Độ dốc giữa các cấp độ phân giải:**
-  $$\Delta^{01} = D^{(0)} - D^{(1)}$$
+- **Độ dốc giữa các cấp độ phân giải:** $\Delta^{01} = D^{(0)} - D^{(1)}$
 
 Phân loại Zero-Shot dựa trên so sánh giá trị $D^{(0)}$ hoặc $|\Delta^{01}|$ với ngưỡng tối ưu $\tau^*$.
 
@@ -151,7 +177,9 @@ Phân loại Zero-Shot dựa trên so sánh giá trị $D^{(0)}$ hoặc $|\Delta
 
 Huấn luyện **CHỈ TRÊN ẢNH THẬT (Real Images Only)** với hàm mất mát tổng các cấp:
 
-$$\mathcal{L}_{total} = \text{NLL}^{(0)} + \text{NLL}^{(1)} + \text{NLL}^{(2)}$$
+$$
+\mathcal{L}_{total} = \text{NLL}^{(0)} + \text{NLL}^{(1)} + \text{NLL}^{(2)}
+$$
 
 ### Pipeline Augmentation Chống Nhiễu/Nén (`zed/augmentations.py`):
 1. **Dynamic JPEG Compression:** Nén JPEG ngẫu nhiên với Quality $Q \in [50, 95]$ ($p=0.5$).
