@@ -5,15 +5,16 @@
 
 ## 📑 Mục Lục
 1. [Tổng Quan & Động Lực Nghiên Cứu](#1-tổng-quan--động-lực-nghiên-cứu)
-2. [Sơ Đồ Kiến Trúc Tổng Thể (System Architecture)](#2-sơ-đồ-kiến-trúc-tổng-thể-system-architecture)
-3. [Cơ Sở Toán Học & Công Thức Chính](#3-cơ-sở-toán-học--công-thức-chính)
-   - [3.1. Discrete Logarithmic Mixture Distribution (SReC)](#31-discrete-logarithmic-mixture-distribution-srec)
-   - [3.2. Phân Tách 2D Haar Wavelet Decomposition (DWT)](#32-phân-tách-2d-haar-wavelet-decomposition-dwt)
-   - [3.3. Efficient Spatial Cross-Attention](#33-efficient-spatial-cross-attention)
-   - [3.4. Chỉ Số Thống Kê Quyết Định Zero-Shot ($D^{(0)}, \Delta^{01}$)](#34-chỉ-số-thống-kê-quyết-định-zero-shot-d0-\delta01)
-4. [Luồng Huấn Luyện & Robust Augmentations](#4-luồng-huấn-luyện--robust-augmentations)
-5. [Luồng Suy Luận Phát Hiện Ảnh AI (Zero-Shot Inference)](#5-luồng-suy-luận-phát-hiện-ảnh-ai-zero-shot-inference)
-6. [Bảng So Sánh ZED Tiêu Chuẩn vs Advanced ZED](#6-bảng-so-sánh-zed-tiêu-chuẩn-vs-advanced-zed)
+2. [Bảng Thuật Ngữ & Giải Thích Chi Tiết Ký Hiệu Toán Học](#2-bảng-thuật-ngữ--giải-thích-chi-tiết-ký-hiệu-toán-học)
+3. [Sơ Đồ Kiến Trúc Tổng Thể (System Architecture)](#3-sơ-đồ-kiến-trúc-tổng-thể-system-architecture)
+4. [Cơ Sở Toán Học & Công Thức Chi Tiết](#4-cơ-sở-toán-học--công-thức-chi-tiết)
+   - [4.1. Discrete Logarithmic Mixture Distribution (SReC)](#41-discrete-logarithmic-mixture-distribution-srec)
+   - [4.2. Phân Tách 2D Haar Wavelet Decomposition (DWT)](#42-phân-tách-2d-haar-wavelet-decomposition-dwt)
+   - [4.3. Efficient Spatial Cross-Attention](#43-efficient-spatial-cross-attention)
+   - [4.4. Chỉ Số Thống Kê Quyết Định Zero-Shot ($D^{(0)}, \Delta^{01}$)](#44-chỉ-số-thống-kê-quyết-định-zero-shot-d0-\delta01)
+5. [Luồng Huấn Luyện & Robust Augmentations](#5-luồng-huấn-luyện--robust-augmentations)
+6. [Luồng Suy Luận Phát Hiện Ảnh AI (Zero-Shot Inference)](#6-luồng-suy-luận-phát-hiện-ảnh-ai-zero-shot-inference)
+7. [Bảng So Sánh ZED Tiêu Chuẩn vs Advanced ZED](#7-bảng-so-sánh-zed-tiêu-chuẩn-vs-advanced-zed)
 
 ---
 
@@ -21,7 +22,7 @@
 
 Các mô hình sinh ảnh AI hiện đại (DALL-E 3, Midjourney v5, SDXL, StyleGAN, DiT) phát triển liên tục khiến các bộ phát hiện có giám sát (Supervised Detectors) bị lỗi thời vì phải retrain liên tục.
 
-Mô hình **ZED (Zero-shot Entropy-based Detector)** tiếp cận theo hướng **chỉ học phân bố của ảnh thật** thông qua mô hình nén mật độ không mất dữ liệu (**SReC**). Tuy nhiên, ZED gốc có 2 điểm yếu lớn:
+Mô hình **ZED (Zero-shot Entropy-based Detector)** tiếp cận theo hướng **chỉ học phân bố của ảnh thật** thông qua mô hình nén mật độ không mất dữ liệu (**SReC**). Tuy nhiên, ZED gốc có 3 điểm yếu lớn:
 1. **Chỉ phân tích trên miền không gian (Spatial Domain):** Dễ bỏ sót các vết nhiễu vi mô ở dải tần số cao do thuật toán Diffusion/GAN để lại.
 2. **Receptive Field bị giới hạn bởi CNN:** Khó bắt được tương quan ngữ cảnh toàn cục giữa các vùng ảnh xa nhau.
 3. **Báo động giả khi ảnh thật bị nén JPEG trên Internet:** Khi ảnh thật bị nén lại, phân bố pixel bị làm nhiễu khiến mô hình nén nhầm là ảnh AI.
@@ -30,7 +31,27 @@ Mô hình **ZED (Zero-shot Entropy-based Detector)** tiếp cận theo hướng 
 
 ---
 
-## 2. 🏗️ Sơ Đồ Kiến Trúc Tổng Thể (System Architecture)
+## 2. 🔤 Bảng Thuật Ngữ & Giải Thích Chi Tiết Ký Hiệu Toán Học
+
+| Ký hiệu / Biến | Kiểu dữ liệu / Miền giá trị | Giải thích chi tiết & Ý nghĩa vật lý |
+| :--- | :--- | :--- |
+| **$x$** | $\mathbb{R}^{B \times C \times N \times M}$ | **Ảnh đầu vào gốc**: Ảnh RGB cần kiểm thử/huấn luyện với giá trị pixel $x_{i,j} \in \{0, 1, \dots, 255\}$. |
+| **$x^{(l)}$** | $\{0, \dots, 255\}^{C \times \frac{N}{2^l} \times \frac{M}{2^l}}$ | **Ma trận ảnh nguyên rời rạc ở cấp $l$** ($l \in \{0, 1, 2, 3\}$). |
+| **$y^{(l+1)}$** | $\mathbb{R}^{C \times \frac{N}{2^{l+1}} \times \frac{M}{2^{l+1}}}$ | **Ma trận ảnh float liên tục** thu được từ $2 \times 2$ Average Pooling của $x^{(l)}$. |
+| **$h_{LL}, h_{LH}, h_{HL}, h_{HH}$** | Ma trận bộ lọc $2 \times 2$ | **4 ma trận bộ lọc biến đổi 2D Haar Wavelet Decomposition**:<br>• $h_{LL}$: Băng tần số thấp (Low-frequency approximation).<br>• $h_{LH}$: Băng tần cao ngang (Horizontal high-frequency).<br>• $h_{HL}$: Băng tần cao dọc (Vertical high-frequency).<br>• $h_{HH}$: Băng tần cao chéo (Diagonal high-frequency). |
+| **$\text{HF}$** | $\mathbb{R}^{B \times 3C \times \frac{N}{2} \times \frac{M}{2}}$ | **Đặc trưng tần số cao (High-Frequency Features)**: Tập hợp 3 băng tần $\text{HF} = [LH, HL, HH]$. Chứa các vết nhiễu vi mô phổ tần cao (spectral grid artifacts) do AI tạo ra. |
+| **$Q, K, V$** | Biểu diễn ma trận Attention | **Query ($Q$), Key ($K$), Value ($V$)** trong thuật toán Attention thu nhận tương quan ngữ cảnh toàn cục. |
+| **$N_{kv}$** | $N_{kv} = 16 \times 16 = 256$ | **Số lượng ô lưới Key/Value sau Adaptive Pooling**: Kỹ thuật nén kích thước không gian Key/Value giúp giảm RAM từ 1 TB xuống 16 MB. |
+| **$K$** | $K = 10$ | **Số thành phần hỗn hợp Logistic rời rạc** ($w_k, \mu_k, s_k$). |
+| **$\text{NLL}_{i,j}^{(l)}$** | $\mathbb{R}^+$ (bits/pixel) | **Negative Log-Likelihood tại pixel $(i, j)$ ở cấp $l$**: Chi phí nén thực tế. |
+| **$H_{i,j}^{(l)}$** | $\mathbb{R}^+$ (bits/pixel) | **Expected Entropy tại pixel $(i, j)$ ở cấp $l$**: Độ hỗn loạn kỳ vọng dự đoán từ ảnh thật. |
+| **$D^{(l)}$** | $\mathbb{R}$ (bits/pixel) | **Khoảng hẫng chi phí mã hóa ở cấp $l$**: $D^{(l)} = \text{NLL}^{(l)} - H^{(l)}$. |
+| **$D^{(0)}$** | $\mathbb{R}$ (bits/pixel) | **Đặc trưng thống kê quyết định tại cấp độ phân giải gốc $l=0$**. |
+| **$\Delta^{01}$** | $\mathbb{R}$ (bits/pixel) | **Độ dốc khoảng hẫng chi phí mã hóa**: $\Delta^{01} = D^{(0)} - D^{(1)}$. |
+
+---
+
+## 3. 🏗️ Sơ Đồ Kiến Trúc Tổng Thể (System Architecture)
 
 ```mermaid
 graph TD
@@ -57,9 +78,9 @@ graph TD
 
 ---
 
-## 3. 📐 Cơ Sở Toán Học & Công Thức Chính
+## 4. 📐 Cơ Sở Toán Học & Công Thức Chi Tiết
 
-### 3.1. Discrete Logarithmic Mixture Distribution (SReC)
+### 4.1. Discrete Logarithmic Mixture Distribution (SReC)
 Phân bố xác suất của một điểm ảnh $x \in \{0, \dots, 255\}$ được mô hình hóa bằng hỗn hợp $K=10$ phân bố Logistic rời rạc:
 
 $$P(x \mid X) = \sum_{k=1}^{K} w_k \cdot \text{logistic}(x \mid \mu_k, s_k)$$
@@ -77,7 +98,7 @@ $$H_{i,j} = -\sum_{v=0}^{255} P(v \mid X_{i,j}) \log_2 P(v \mid X_{i,j})$$
 
 ---
 
-### 3.2. Phân Tách 2D Haar Wavelet Decomposition (DWT)
+### 4.2. Phân Tách 2D Haar Wavelet Decomposition (DWT)
 Ma trận bộ lọc Haar 2D thực hiện phân tách kênh không gian $x$ thành 4 băng tần:
 
 $$\begin{aligned}
@@ -92,7 +113,7 @@ $$\text{HF} = \text{Concat}\left(LH, HL, HH\right) \in \mathbb{R}^{B \times 3C \
 
 ---
 
-### 3.3. Efficient Spatial Cross-Attention
+### 4.3. Efficient Spatial Cross-Attention
 Để tránh bùng nổ bộ nhớ $O((HW)^2)$ khi $H=W=256$, thuật toán **Efficient Spatial Attention** giảm chiều không gian của Key ($K$) và Value ($V$) thông qua Adaptive Pooling về lưới cố định $16 \times 16$:
 
 $$\begin{aligned}
@@ -108,7 +129,7 @@ $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right
 
 ---
 
-### 3.4. Chỉ Số Thống Kê Quyết Định Zero-Shot ($D^{(0)}, \Delta^{01}$)
+### 4.4. Chỉ Số Thống Kê Quyết Định Zero-Shot ($D^{(0)}, \Delta^{01}$)
 Khoảng hẫng chi phí mã hóa (Coding Cost Gap) tại cấp $l$:
 $$D^{(l)} = \text{NLL}^{(l)} - H^{(l)}$$
 
@@ -121,7 +142,7 @@ Phân loại Zero-Shot dựa trên so sánh giá trị $D^{(0)}$ hoặc $|\Delta
 
 ---
 
-## 4. 🔄 Luồng Huấn Luyện & Robust Augmentations
+## 5. 🔄 Luồng Huấn Luyện & Robust Augmentations
 
 Huấn luyện **CHỈ TRÊN ẢNH THẬT (Real Images Only)** với hàm mất mát tổng các cấp:
 
@@ -134,7 +155,7 @@ $$\mathcal{L}_{total} = \text{NLL}^{(0)} + \text{NLL}^{(1)} + \text{NLL}^{(2)}$$
 
 ---
 
-## 5. ⚡ Luồng Suy Luận Phát Hiện Ảnh AI (Zero-Shot Inference)
+## 6. ⚡ Luồng Suy Luận Phát Hiện Ảnh AI (Zero-Shot Inference)
 
 1. Nạp ảnh kiểm thử $x \in \{0, \dots, 255\}^{N \times M \times 3}$.
 2. Tạo kim tự tháp đa độ phân giải $x^{(0)}, x^{(1)}, x^{(2)}, x^{(3)}$ bằng $2 \times 2$ Average Pooling.
@@ -147,7 +168,7 @@ $$\mathcal{L}_{total} = \text{NLL}^{(0)} + \text{NLL}^{(1)} + \text{NLL}^{(2)}$$
 
 ---
 
-## 6. 📊 Bảng So Sánh ZED Tiêu Chuẩn vs Advanced ZED
+## 7. 📊 Bảng So Sánh ZED Tiêu Chuẩn vs Advanced ZED
 
 | Đặc Tính | ZED Tiêu Chuẩn (Original Paper) | Advanced ZED (Triển khai mới) |
 | :--- | :--- | :--- |
