@@ -35,10 +35,10 @@ class RealImageDataset(Dataset):
         elif data_dir is not None:
             self.data_dir = Path(data_dir)
             valid_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
-            # Discover all image files recursively across all subfolders
+            # Discover all image files recursively across all subfolders (ignore hidden metadata files starting with '.')
             self.image_paths = sorted([
                 p for p in self.data_dir.rglob("*")
-                if p.is_file() and p.suffix.lower() in valid_exts
+                if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts
             ])
         else:
             raise ValueError("Either 'data_dir' or 'image_paths' must be provided.")
@@ -78,10 +78,10 @@ def create_train_val_datasets(
     data_path = Path(data_dir)
     valid_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
     
-    # Quét đệ quy toàn bộ thư mục và các thư mục con
+    # Quét đệ quy toàn bộ thư mục và các thư mục con (bỏ qua các file ẩn ._*)
     all_paths = sorted([
         p for p in data_path.rglob("*")
-        if p.is_file() and p.suffix.lower() in valid_exts
+        if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts
     ])
     
     total_count = len(all_paths)
@@ -89,6 +89,21 @@ def create_train_val_datasets(
         raise ValueError(f"No valid image files found in '{data_dir}' (scanned recursively in all subfolders).")
 
     print(f"📁 Recursively scanned '{data_dir}': Found {total_count} images across all subfolders.")
+
+    if train_transform is None:
+        train_transform = T.Compose([
+            T.Resize(image_size, interpolation=T.InterpolationMode.BILINEAR),
+            T.RandomCrop(image_size, pad_if_needed=True),
+            T.RandomHorizontalFlip(p=0.5),
+            T.ToTensor()
+        ])
+
+    if val_transform is None:
+        val_transform = T.Compose([
+            T.Resize(image_size, interpolation=T.InterpolationMode.BILINEAR),
+            T.CenterCrop(image_size),
+            T.ToTensor()
+        ])
 
     if val_split <= 0.0 or total_count == 1:
         train_ds = RealImageDataset(image_paths=all_paths, image_size=image_size, transform=train_transform)
@@ -137,12 +152,12 @@ class EvaluationImageDataset(Dataset):
         self.items = []
         if self.real_dir.exists():
             for p in self.real_dir.rglob("*"):
-                if p.suffix.lower() in valid_exts:
+                if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
                     self.items.append((p, 0)) # Label 0 = Real
                     
         if self.fake_dir.exists():
             for p in self.fake_dir.rglob("*"):
-                if p.suffix.lower() in valid_exts:
+                if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
                     self.items.append((p, 1)) # Label 1 = Fake
 
         self.transform = T.Compose([
