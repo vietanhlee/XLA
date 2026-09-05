@@ -12,28 +12,36 @@ from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as T
 
+import numpy as np
+
 class RealImageDataset(Dataset):
     """
-    Dataset loader for REAL images used in training the SReC Density Estimator.
-    Only real images are required!
+    Dataset loader for REAL images used in training/validating the SReC Density Estimator.
+    Recursively scans data_dir and all its subfolders for image files.
     """
 
     def __init__(
         self,
-        data_dir: str,
+        data_dir: Optional[str] = None,
+        image_paths: Optional[List[Path]] = None,
         image_size: Tuple[int, int] = (256, 256),
         transform: Optional[Callable] = None
     ):
         super().__init__()
-        self.data_dir = Path(data_dir)
         self.image_size = image_size
         
-        # Discover all image files
-        valid_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
-        self.image_paths = [
-            p for p in self.data_dir.rglob("*")
-            if p.suffix.lower() in valid_exts
-        ]
+        if image_paths is not None:
+            self.image_paths = image_paths
+        elif data_dir is not None:
+            self.data_dir = Path(data_dir)
+            valid_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+            # Discover all image files recursively across all subfolders
+            self.image_paths = sorted([
+                p for p in self.data_dir.rglob("*")
+                if p.is_file() and p.suffix.lower() in valid_exts
+            ])
+        else:
+            raise ValueError("Either 'data_dir' or 'image_paths' must be provided.")
 
         if transform is not None:
             self.transform = transform
@@ -53,6 +61,58 @@ class RealImageDataset(Dataset):
         tensor_img = self.transform(image) # Range [0.0, 1.0]
         # Convert to range [0, 255] for 8-bit discrete logistic mixture model
         return tensor_img * 255.0
+
+
+def create_train_val_datasets(
+    data_dir: str,
+    val_split: float = 0.15,
+    image_size: Tuple[int, int] = (256, 256),
+    train_transform: Optional[Callable] = None,
+    val_transform: Optional[Callable] = None,
+    seed: int = 42
+) -> Tuple[RealImageDataset, Optional[RealImageDataset]]:
+    """
+    Scans data_dir recursively (including all subfolders), collects all image paths,
+    and splits them deterministically into Training and Validation RealImageDatasets.
+    """
+    data_path = Path(data_dir)
+    valid_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+    
+    # Quét đệ quy toàn bộ thư mục và các thư mục con
+    all_paths = sorted([
+        p for p in data_path.rglob("*")
+        if p.is_file() and p.suffix.lower() in valid_exts
+    ])
+    
+    total_count = len(all_paths)
+    if total_count == 0:
+        raise ValueError(f"No valid image files found in '{data_dir}' (scanned recursively in all subfolders).")
+
+    print(f"📁 Recursively scanned '{data_dir}': Found {total_count} images across all subfolders.")
+
+    if val_split <= 0.0 or total_count == 1:
+        train_ds = RealImageDataset(image_paths=all_paths, image_size=image_size, transform=train_transform)
+        print(f"   -> Training set: {len(train_ds)} images | Validation set: 0 images (val_split=0)")
+        return train_ds, None
+
+    # Shuffle deterministically
+    rng = np.random.default_rng(seed)
+    indices = np.arange(total_count)
+    rng.shuffle(indices)
+
+    num_val = max(1, int(total_count * val_split))
+    val_indices = indices[:num_val]
+    train_indices = indices[num_val:]
+
+    train_paths = [all_paths[i] for i in train_indices]
+    val_paths = [all_paths[i] for i in val_indices]
+
+    train_ds = RealImageDataset(image_paths=train_paths, image_size=image_size, transform=train_transform)
+    val_ds = RealImageDataset(image_paths=val_paths, image_size=image_size, transform=val_transform)
+
+    print(f"   -> Split: Training set = {len(train_ds)} images | Validation set = {len(val_ds)} images (val_split={val_split:.2f})")
+    return train_ds, val_ds
+
 
 
 class EvaluationImageDataset(Dataset):

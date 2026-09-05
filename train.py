@@ -1,6 +1,6 @@
 """
-Training Entry Point for Advanced ZED Model (Wavelet + Cross-Scale Attention + Robust Augmentations).
-Paper: "Zero-Shot Detection of AI-Generated Images" (Cozzolino et al. - Advanced Upgrade)
+Training Entry Point for Standard ZED (Zero-Shot Detection of AI-Generated Images).
+Paper: "Zero-Shot Detection of AI-Generated Images" (Cozzolino et al.)
 """
 
 import os
@@ -15,14 +15,13 @@ from torch.utils.data import DataLoader
 sys.path.append(str(Path(__file__).resolve().parent))
 
 from config import ModelConfig, TrainConfig
-from zed.models import AdvancedZEDModel
-from zed.augmentations import RobustRealImageTransform
+from zed.models.zed_model import ZEDModel
 from zed.dataset import create_train_val_datasets
 from zed.trainer import run_training
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train Advanced ZED Model on REAL images.")
+    parser = argparse.ArgumentParser(description="Train Standard ZED Density Estimator on REAL images.")
     parser.add_argument("--data_dir", type=str, default=r"C:\Users\levie\Downloads\img\images", help="Path to folder containing real images (scans recursively).")
     parser.add_argument("--val_split", type=float, default=0.15, help="Validation set split ratio (0.0 to disable).")
     parser.add_argument("--epochs", type=int, default=50, help="Maximum training epochs.")
@@ -46,23 +45,18 @@ def main():
     )
 
     device = torch.device(train_cfg.device)
-    print("=== Starting Advanced ZED Training Pipeline ===")
-    print("Features: 2D Haar Wavelet (High-Frequency) + Spatial Self-Attention + Robust Augmentations")
+    print("=== Starting Standard ZED Training Pipeline ===")
     print(f"Device: {device} | Data Directory (Recursive): {train_cfg.data_dir}")
 
     if not os.path.exists(train_cfg.data_dir):
-        print(f"Warning: Directory '{train_cfg.data_dir}' does not exist. Creating directory.")
+        print(f"Warning: Directory '{train_cfg.data_dir}' does not exist yet. Creating directory.")
         os.makedirs(train_cfg.data_dir, exist_ok=True)
-
-    # Robust transform for Advanced ZED training
-    train_transform = RobustRealImageTransform(image_size=train_cfg.image_size)
 
     # 1. Create Datasets with Recursive Scanning and Train/Val Split
     train_dataset, val_dataset = create_train_val_datasets(
         data_dir=train_cfg.data_dir,
         val_split=args.val_split,
         image_size=train_cfg.image_size,
-        train_transform=train_transform,
         seed=42
     )
 
@@ -84,13 +78,12 @@ def main():
             pin_memory=(train_cfg.device == "cuda")
         )
 
-    # 2. Build Advanced ZED Model & Optimizer
-    model = AdvancedZEDModel(
+    # 2. Build Standard ZED Model & Optimizer
+    model = ZEDModel(
         in_channels=model_cfg.in_channels,
         num_mixtures=model_cfg.num_mixtures,
         hidden_channels=model_cfg.hidden_channels,
         num_res_blocks=model_cfg.num_res_blocks,
-        num_heads=4,
         min_log_scale=model_cfg.min_log_scale
     ).to(device)
 
@@ -126,9 +119,9 @@ def main():
         checkpoint_dir=train_cfg.checkpoint_dir,
         save_interval=train_cfg.save_interval,
         resume_path=args.resume,
-        model_name="Advanced ZED",
-        best_checkpoint_filename="zed_advanced_best.pth",
-        last_checkpoint_filename="zed_advanced_last.pth"
+        model_name="Standard ZED",
+        best_checkpoint_filename="zed_best.pth",
+        last_checkpoint_filename="zed_last.pth"
     )
 
 
