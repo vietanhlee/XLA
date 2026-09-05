@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--patience", type=int, default=7, help="Early stopping patience (epochs).")
     parser.add_argument("--min_delta", type=float, default=1e-4, help="Early stopping min delta improvement.")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda/cpu).")
+    parser.add_argument("--num_workers", type=int, default=min(4, max(1, os.cpu_count() or 2)), help="DataLoader worker threads.")
     parser.add_argument("--checkpoint_dir", type=str, default="checkpoints", help="Directory to save checkpoints.")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint file (.pth) to resume training from.")
     args = parser.parse_args()
@@ -44,6 +45,7 @@ def main():
         num_epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.lr,
+        num_workers=args.num_workers,
         device=args.device,
         checkpoint_dir=args.checkpoint_dir
     )
