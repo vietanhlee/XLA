@@ -5,7 +5,7 @@ Paper: "Zero-Shot Detection of AI-Generated Images" (Cozzolino et al.)
 
 import os
 from pathlib import Path
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, List, Optional
 
 import torch
 import numpy as np
