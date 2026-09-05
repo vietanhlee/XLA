@@ -60,11 +60,14 @@ def main():
         seed=42
     )
 
+    # Tính toán số workers an toàn để không bị UserWarning trên Colab (tối đa bằng số CPU core)
+    workers = min(train_cfg.num_workers, max(1, os.cpu_count() or 2)) if train_cfg.device == "cuda" else 0
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=train_cfg.batch_size,
         shuffle=True,
-        num_workers=train_cfg.num_workers if train_cfg.device == "cuda" else 0,
+        num_workers=workers,
         pin_memory=(train_cfg.device == "cuda")
     )
 
@@ -74,7 +77,7 @@ def main():
             val_dataset,
             batch_size=train_cfg.batch_size,
             shuffle=False,
-            num_workers=train_cfg.num_workers if train_cfg.device == "cuda" else 0,
+            num_workers=workers,
             pin_memory=(train_cfg.device == "cuda")
         )
 

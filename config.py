@@ -16,6 +16,8 @@ class ModelConfig:
     num_scales: int = 3                 # Level 0, Level 1, Level 2 (Level 3 is base prompt)
     min_log_scale: float = -7.0         # Minimum log-scale for numerical stability in logistic mixture
 
+import os
+
 @dataclass
 class TrainConfig:
     """Hyperparameters for training the Density Estimator on REAL images."""
@@ -25,7 +27,7 @@ class TrainConfig:
     learning_rate: float = 1e-4
     weight_decay: float = 1e-5
     image_size: Tuple[int, int] = (256, 256)
-    num_workers: int = 4
+    num_workers: int = min(4, max(1, os.cpu_count() or 2))
     device: str = "cuda"                # "cuda" or "cpu"
     checkpoint_dir: str = "checkpoints"
     save_interval: int = 5

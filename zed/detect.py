@@ -15,7 +15,7 @@ from typing import Tuple
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 # Add parent dir to path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
