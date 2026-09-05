@@ -16,6 +16,8 @@ from tqdm.auto import tqdm
 from zed.utils import save_checkpoint, EarlyStopping
 
 
+import sys
+
 def train_one_epoch(
     model: nn.Module,
     dataloader: DataLoader,
@@ -38,6 +40,7 @@ def train_one_epoch(
         dataloader,
         desc=f"Epoch [{epoch:02d}/{total_epochs:02d}] ({model_name} Train)",
         leave=True,
+        file=sys.stdout,
         dynamic_ncols=True
     )
 
@@ -99,6 +102,7 @@ def validate_one_epoch(
         dataloader,
         desc=f"Epoch [{epoch:02d}/{total_epochs:02d}] ({model_name} Val)  ",
         leave=False,
+        file=sys.stdout,
         dynamic_ncols=True
     )
 
