@@ -13,7 +13,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from zed.utils import save_checkpoint, EarlyStopping
+import json
+from zed.utils import save_checkpoint, load_checkpoint, EarlyStopping, plot_training_curves
 
 
 import sys
@@ -148,8 +149,16 @@ def run_training(
     os.makedirs(checkpoint_dir, exist_ok=True)
     early_stopping = EarlyStopping(patience=patience, min_delta=min_delta, verbose=True)
     
-    start_epoch = 1
-    best_val_loss = float("inf")
+    history: Dict[str, list] = {"epoch": [], "train_loss": [], "val_loss": [], "lr": []}
+    history_file = os.path.join(checkpoint_dir, "training_history.json")
+    plot_file = os.path.join(checkpoint_dir, "training_curves.png")
+
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, "r") as f:
+                history = json.load(f)
+        except Exception:
+            pass
 
     # Resume training if checkpoint path is provided
     if resume_path and os.path.exists(resume_path):
@@ -185,6 +194,7 @@ def run_training(
         scheduler.step()
         elapsed = time.strftime("%M:%S", time.gmtime(time.time() - start_time))
 
+        val_loss_val = None
         if val_loader is not None:
             val_loss = validate_one_epoch(
                 model=model,
@@ -195,6 +205,7 @@ def run_training(
                 total_epochs=num_epochs,
                 model_name=model_name
             )
+            val_loss_val = val_loss
             tqdm.write(f"✓ [{model_name} Epoch {epoch:02d}/{num_epochs:02d}] ({elapsed}) | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | LR: {current_lr:.6f}")
 
             # Check Early Stopping based on validation loss
@@ -214,6 +225,20 @@ def run_training(
                 best_path = os.path.join(checkpoint_dir, best_checkpoint_filename)
                 save_checkpoint(model, optimizer, epoch, train_loss, best_path, scheduler=scheduler)
 
+        # Update History & Save Curves
+        history["epoch"].append(epoch)
+        history["train_loss"].append(float(train_loss))
+        if val_loss_val is not None:
+            history["val_loss"].append(float(val_loss_val))
+        history["lr"].append(float(current_lr))
+
+        try:
+            with open(history_file, "w") as f:
+                json.dump(history, f, indent=2)
+            plot_training_curves(history, plot_file, model_name=model_name)
+        except Exception as e:
+            tqdm.write(f"⚠️ Warning saving plots/history: {e}")
+
         if epoch % save_interval == 0:
             ckpt_path = os.path.join(checkpoint_dir, f"{model_name.lower().replace(' ', '_')}_epoch_{epoch:02d}.pth")
             save_checkpoint(model, optimizer, epoch, train_loss, ckpt_path, scheduler=scheduler)
@@ -221,4 +246,14 @@ def run_training(
     # Save last checkpoint
     last_path = os.path.join(checkpoint_dir, last_checkpoint_filename)
     save_checkpoint(model, optimizer, epoch, train_loss, last_path, scheduler=scheduler)
+    
+    # Save final plot
+    try:
+        plot_training_curves(history, plot_file, model_name=model_name)
+    except Exception:
+        pass
+
     print(f"\n🎉 === {model_name} Training Complete ===")
+    print(f"   -> Checkpoints: {checkpoint_dir}")
+    print(f"   -> Loss & LR Plot: {plot_file}")
+    print(f"   -> History Metrics JSON: {history_file}")

@@ -16,10 +16,11 @@ from tqdm.auto import tqdm
 
 sys.path.append(str(Path(__file__).resolve().parent))
 
+import json
 from config import ModelConfig
 from zed.models import AdvancedZEDModel
 from zed.dataset import EvaluationImageDataset
-from zed.utils import load_checkpoint, compute_metrics
+from zed.utils import load_checkpoint, compute_metrics, plot_detection_dashboard
 
 def evaluate_advanced_zero_shot(
     model: AdvancedZEDModel,
@@ -116,6 +117,33 @@ def main():
     print(f"[Stat |Delta^01|] -> ROC-AUC: {metrics_delta01['auc']:.2f}% | Best Acc: {metrics_delta01['best_acc']:.2f}% | Threshold: {metrics_delta01['best_threshold']:.4f}")
 
     print("="*55)
+
+    # Save Detection Dashboard Plot and Metrics JSON
+    results_dir = Path("results")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    
+    dashboard_path = str(results_dir / "detection_dashboard_advanced_zed.png")
+    plot_detection_dashboard(
+        d0_scores=d0_scores,
+        abs_d0_scores=abs_d0_scores,
+        delta01_scores=delta01_scores,
+        labels=labels,
+        metrics_d0=metrics_d0,
+        output_path=dashboard_path,
+        model_name="Advanced ZED"
+    )
+
+    summary_metrics = {
+        "d0": metrics_d0,
+        "abs_d0": metrics_abs_d0,
+        "delta01": metrics_delta01
+    }
+    metrics_json_path = results_dir / "detection_metrics_advanced_zed.json"
+    with open(metrics_json_path, "w") as f:
+        json.dump(summary_metrics, f, indent=2)
+
+    print(f"📊 Saved 4-panel Advanced Detection Dashboard plot: {dashboard_path}")
+    print(f"📄 Saved Advanced metrics JSON: {metrics_json_path}")
 
 if __name__ == "__main__":
     main()

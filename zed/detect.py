@@ -23,7 +23,8 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from config import ModelConfig, DetectConfig
 from zed.models.zed_model import ZEDModel
 from zed.dataset import EvaluationImageDataset
-from zed.utils import load_checkpoint, compute_metrics
+import json
+from zed.utils import load_checkpoint, compute_metrics, plot_roc_curves
 
 def evaluate_zero_shot(
     model: ZEDModel,
@@ -138,6 +139,33 @@ def main():
     print(f"[Stat |Delta^01|] -> ROC-AUC: {metrics_delta01['auc']:.2f}% | Best Acc: {metrics_delta01['best_acc']:.2f}% | Threshold: {metrics_delta01['best_threshold']:.4f}")
 
     print("="*50)
+
+    # Save Detection Dashboard Plot and Metrics JSON
+    results_dir = Path("results")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    
+    dashboard_path = str(results_dir / "detection_dashboard_standard_zed.png")
+    plot_detection_dashboard(
+        d0_scores=d0_scores,
+        abs_d0_scores=abs_d0_scores,
+        delta01_scores=delta01_scores,
+        labels=labels,
+        metrics_d0=metrics_d0,
+        output_path=dashboard_path,
+        model_name="Standard ZED"
+    )
+
+    summary_metrics = {
+        "d0": metrics_d0,
+        "abs_d0": metrics_abs_d0,
+        "delta01": metrics_delta01
+    }
+    metrics_json_path = results_dir / "detection_metrics_standard_zed.json"
+    with open(metrics_json_path, "w") as f:
+        json.dump(summary_metrics, f, indent=2)
+
+    print(f"📊 Saved 4-panel Detection Dashboard plot: {dashboard_path}")
+    print(f"📄 Saved metrics JSON: {metrics_json_path}")
 
 if __name__ == "__main__":
     main()
