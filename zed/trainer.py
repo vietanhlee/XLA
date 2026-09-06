@@ -35,6 +35,9 @@ def train_one_epoch(
     """Trains the density estimator model for one epoch."""
     model.train()
     total_loss = 0.0
+    total_l0 = 0.0
+    total_l1 = 0.0
+    total_l2 = 0.0
     num_batches = len(dataloader)
 
     pbar = tqdm(
@@ -70,6 +73,12 @@ def train_one_epoch(
         total_loss += loss_val
         running_avg_loss = total_loss / batch_idx
 
+        if "nll_levels" in output_dict and len(output_dict["nll_levels"]) >= 3:
+            nll_levels = output_dict["nll_levels"]
+            total_l0 += nll_levels[0].mean().item()
+            total_l1 += nll_levels[1].mean().item()
+            total_l2 += nll_levels[2].mean().item()
+
         postfix = {
             "Loss": f"{loss_val:.4f}",
             "Avg Loss": f"{running_avg_loss:.4f}",
@@ -81,7 +90,8 @@ def train_one_epoch(
 
         pbar.set_postfix(postfix)
 
-    return total_loss / max(1, num_batches)
+    denom = max(1, num_batches)
+    return total_loss / denom, total_l0 / denom, total_l1 / denom, total_l2 / denom
 
 
 @torch.no_grad()
@@ -154,7 +164,15 @@ def run_training(
     epoch = 0
     train_loss = float("inf")
 
-    history: Dict[str, list] = {"epoch": [], "train_loss": [], "val_loss": [], "lr": []}
+    history: Dict[str, list] = {
+        "epoch": [],
+        "train_loss": [],
+        "val_loss": [],
+        "level_0_loss": [],
+        "level_1_loss": [],
+        "level_2_loss": [],
+        "epoch_time": []
+    }
     history_file = os.path.join(checkpoint_dir, "training_history.json")
     plot_file = os.path.join(checkpoint_dir, "training_curves.png")
 
@@ -182,7 +200,7 @@ def run_training(
         start_time = time.time()
         current_lr = scheduler.get_last_lr()[0]
 
-        train_loss = train_one_epoch(
+        train_loss, l0_loss, l1_loss, l2_loss = train_one_epoch(
             model=model,
             dataloader=train_loader,
             optimizer=optimizer,
@@ -197,7 +215,8 @@ def run_training(
         )
 
         scheduler.step()
-        elapsed = time.strftime("%M:%S", time.gmtime(time.time() - start_time))
+        epoch_sec = round(time.time() - start_time, 2)
+        elapsed = time.strftime("%M:%S", time.gmtime(epoch_sec))
 
         val_loss_val = None
         if val_loader is not None:
@@ -235,7 +254,10 @@ def run_training(
         history["train_loss"].append(float(train_loss))
         if val_loss_val is not None:
             history["val_loss"].append(float(val_loss_val))
-        history["lr"].append(float(current_lr))
+        history.setdefault("level_0_loss", []).append(float(l0_loss))
+        history.setdefault("level_1_loss", []).append(float(l1_loss))
+        history.setdefault("level_2_loss", []).append(float(l2_loss))
+        history.setdefault("epoch_time", []).append(float(epoch_sec))
 
         try:
             with open(history_file, "w") as f:

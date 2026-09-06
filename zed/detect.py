@@ -76,7 +76,7 @@ def main():
     parser.add_argument("--checkpoint", type=str, default="checkpoints/zed_best.pth", help="Path to pre-trained ZED checkpoint.")
     parser.add_argument("--real_dir", type=str, default="data/test/real", help="Directory containing test REAL images.")
     parser.add_argument("--fake_dir", type=str, default="data/test/fake", help="Directory containing test FAKE / AI images.")
-    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for inference.")
+    parser.add_argument("--batch_size", type=int, default=4, help="Batch size for inference.")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda/cpu).")
     parser.add_argument("--multigpu", action="store_true", default=True, help="Enable multi-GPU DataParallel inference if multiple GPUs exist (default: True).")
     parser.add_argument("--no_multigpu", dest="multigpu", action="store_false", help="Force single-GPU mode even if multiple GPUs exist.")

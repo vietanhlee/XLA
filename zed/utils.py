@@ -201,24 +201,30 @@ def plot_training_curves(
     model_name: str = "ZED"
 ):
     """
-    Plots and saves publication-quality training & validation loss curves and learning rate schedule.
+    Plots and saves publication-quality training curves:
+      1. Overall NLL Loss Convergence (Train vs Validation Loss with Best Val Marker)
+      2. Multi-Scale NLL Loss Breakdown per Scale Level (Level 0: 256x256, Level 1: 128x128, Level 2: 64x64)
+         or Epoch Training Duration & Speed.
     """
     epochs = history.get("epoch", list(range(1, len(history.get("train_loss", [])) + 1)))
     train_loss = history.get("train_loss", [])
     val_loss = history.get("val_loss", [])
-    lrs = history.get("lr", [])
+    
+    l0_loss = history.get("level_0_loss", [])
+    l1_loss = history.get("level_1_loss", [])
+    l2_loss = history.get("level_2_loss", [])
+    epoch_times = history.get("epoch_time", [])
 
     if not train_loss:
         return
 
-    # Use clean style
     plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.size': 10})
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), dpi=200)
-    fig.suptitle(f"📊 {model_name} Model - Training Progress & Convergence Dashboard", fontsize=14, fontweight="bold", y=1.02)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5.5), dpi=200)
+    fig.suptitle(f"{model_name} Model - Multi-Scale Density Training Progress Dashboard", fontsize=14, fontweight="bold", y=1.02)
 
     # Subplot 1: NLL Loss Curves (bits/pixel)
     ax1 = axes[0]
-    ax1.plot(epochs, train_loss, label="Training NLL Loss", color="#1f77b4", linewidth=2.2, marker="o", markersize=4.5, alpha=0.9)
+    ax1.plot(epochs, train_loss, label="Training NLL Loss (Total)", color="#1f77b4", linewidth=2.2, marker="o", markersize=4.5, alpha=0.9)
     
     if val_loss and len(val_loss) == len(epochs):
         ax1.plot(epochs, val_loss, label="Validation NLL Loss", color="#ff7f0e", linewidth=2.2, linestyle="--", marker="s", markersize=4.5, alpha=0.9)
@@ -228,20 +234,31 @@ def plot_training_curves(
         ax1.scatter([best_epoch], [min_val], color="#d62728", s=100, zorder=6, label=f"Best Val: {min_val:.4f} (Ep {best_epoch})")
         ax1.axvline(x=best_epoch, color="#d62728", linestyle=":", alpha=0.5)
 
-    ax1.set_title("Negative Log-Likelihood (NLL) Loss per Epoch", fontsize=11, fontweight="bold", pad=8)
+    ax1.set_title("Total Negative Log-Likelihood (NLL) Loss per Epoch", fontsize=11, fontweight="bold", pad=8)
     ax1.set_xlabel("Epoch Number", fontsize=10, labelpad=6)
     ax1.set_ylabel("Loss (bits / pixel)", fontsize=10, labelpad=6)
     ax1.grid(True, linestyle=":", alpha=0.6)
     ax1.legend(loc="upper right", frameon=True, facecolor="white", framealpha=0.95, edgecolor="#cccccc")
 
-    # Subplot 2: Learning Rate Schedule
+    # Subplot 2: Multi-Scale NLL Loss Breakdown (Level 0, 1, 2) or Epoch Duration
     ax2 = axes[1]
-    if lrs and len(lrs) == len(epochs):
-        ax2.plot(epochs, lrs, label="Learning Rate", color="#2ca02c", linewidth=2.2, marker="d", markersize=4.5, alpha=0.9)
-        ax2.set_title("Learning Rate Decay Schedule per Epoch", fontsize=11, fontweight="bold", pad=8)
+    if l0_loss and len(l0_loss) == len(epochs):
+        ax2.plot(epochs, l0_loss, label="Level 0 (256x256 - High-Freq Details)", color="#2ca02c", linewidth=2.0, marker="o", markersize=4)
+        if l1_loss and len(l1_loss) == len(epochs):
+            ax2.plot(epochs, l1_loss, label="Level 1 (128x128 - Mid Texture)", color="#9467bd", linewidth=2.0, marker="s", markersize=4)
+        if l2_loss and len(l2_loss) == len(epochs):
+            ax2.plot(epochs, l2_loss, label="Level 2 (64x64 - Coarse Context)", color="#8c564b", linewidth=2.0, marker="^", markersize=4)
+
+        ax2.set_title("Multi-Scale NLL Loss Breakdown by Spatial Resolution", fontsize=11, fontweight="bold", pad=8)
         ax2.set_xlabel("Epoch Number", fontsize=10, labelpad=6)
-        ax2.set_ylabel("Learning Rate (Log Scale)", fontsize=10, labelpad=6)
-        ax2.set_yscale("log")
+        ax2.set_ylabel("Scale Loss (bits / pixel)", fontsize=10, labelpad=6)
+        ax2.grid(True, linestyle=":", alpha=0.6)
+        ax2.legend(loc="upper right", frameon=True, facecolor="white", framealpha=0.95, edgecolor="#cccccc")
+    elif epoch_times and len(epoch_times) == len(epochs):
+        ax2.plot(epochs, epoch_times, label="Epoch Time (sec)", color="#e377c2", linewidth=2.0, marker="d", markersize=4)
+        ax2.set_title("Training Time per Epoch (Hardware Throughput)", fontsize=11, fontweight="bold", pad=8)
+        ax2.set_xlabel("Epoch Number", fontsize=10, labelpad=6)
+        ax2.set_ylabel("Duration (Seconds)", fontsize=10, labelpad=6)
         ax2.grid(True, linestyle=":", alpha=0.6)
         ax2.legend(loc="upper right", frameon=True, facecolor="white", framealpha=0.95, edgecolor="#cccccc")
 
@@ -274,7 +291,7 @@ def plot_detection_dashboard(
 
     plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.size': 10})
     fig, axes = plt.subplots(2, 2, figsize=(15, 12), dpi=200)
-    fig.suptitle(f"🚀 {model_name} - Zero-Shot AI Image Detection Performance Dashboard", fontsize=15, fontweight="bold", y=0.98)
+    fig.suptitle(f"{model_name} - Zero-Shot AI Image Detection Performance Dashboard", fontsize=15, fontweight="bold", y=0.98)
 
     colors = {"d0": "#1f77b4", "abs_d0": "#ff7f0e", "delta01": "#2ca02c"}
 
