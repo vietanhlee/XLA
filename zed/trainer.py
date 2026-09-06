@@ -149,6 +149,11 @@ def run_training(
     os.makedirs(checkpoint_dir, exist_ok=True)
     early_stopping = EarlyStopping(patience=patience, min_delta=min_delta, verbose=True)
     
+    start_epoch = 1
+    best_val_loss = float("inf")
+    epoch = 0
+    train_loss = float("inf")
+
     history: Dict[str, list] = {"epoch": [], "train_loss": [], "val_loss": [], "lr": []}
     history_file = os.path.join(checkpoint_dir, "training_history.json")
     plot_file = os.path.join(checkpoint_dir, "training_curves.png")
