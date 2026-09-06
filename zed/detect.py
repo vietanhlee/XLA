@@ -24,7 +24,7 @@ from config import ModelConfig, DetectConfig
 from zed.models.zed_model import ZEDModel
 from zed.dataset import EvaluationImageDataset
 import json
-from zed.utils import load_checkpoint, compute_metrics, plot_roc_curves
+from zed.utils import load_checkpoint, compute_metrics, plot_detection_dashboard, get_safe_device, wrap_model_multigpu
 
 def evaluate_zero_shot(
     model: ZEDModel,
@@ -78,9 +78,11 @@ def main():
     parser.add_argument("--fake_dir", type=str, default="data/test/fake", help="Directory containing test FAKE / AI images.")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for inference.")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda/cpu).")
+    parser.add_argument("--multigpu", action="store_true", default=True, help="Enable multi-GPU DataParallel inference if multiple GPUs exist (default: True).")
+    parser.add_argument("--no_multigpu", dest="multigpu", action="store_false", help="Force single-GPU mode even if multiple GPUs exist.")
     args = parser.parse_args()
 
-    device = torch.device(args.device)
+    device = get_safe_device(args.device)
     print(f"=== ZED Zero-Shot Detection Evaluation ===")
     print(f"Device: {device}")
     print(f"Real Dir: {args.real_dir}")
@@ -97,9 +99,12 @@ def main():
     ).to(device)
 
     if os.path.exists(args.checkpoint):
-        load_checkpoint(args.checkpoint, model, device=device)
+        load_checkpoint(args.checkpoint, model, device=device.type)
     else:
         print(f"Warning: Checkpoint '{args.checkpoint}' not found! Running evaluation with randomly initialized model.")
+
+    # Multi-GPU Auto Detection & DataParallel Wrap
+    model, gpu_count = wrap_model_multigpu(model, device, use_multigpu=args.multigpu)
 
     # Load Dataset
     dataset = EvaluationImageDataset(

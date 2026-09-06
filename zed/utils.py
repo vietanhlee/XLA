@@ -11,6 +11,29 @@ import torch
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
 
+def get_safe_device(requested_device: str = "cuda") -> torch.device:
+    """
+    Validates if requested CUDA device is functional and compatible with PyTorch binaries.
+    Falls back to CPU and prints clear advice if CUDA kernel error (e.g. Tesla P100 sm_60 on PyTorch 2.x) occurs.
+    """
+    if requested_device.startswith("cuda") and torch.cuda.is_available():
+        try:
+            # Test a dummy operation on CUDA device
+            test_tensor = torch.zeros((1, 1), device=requested_device)
+            _ = test_tensor + 1.0
+            return torch.device(requested_device)
+        except Exception as e:
+            print("\n" + "!" * 75)
+            print("⚠️ CẢNH BÁO GPU KHÔNG TƯƠNG THÍCH (CUDA INCOMPATIBILITY WARNING):")
+            print(f"   Card GPU hiện tại (Tesla P100 / sm_60) không hỗ trợ bản PyTorch 2.x này.")
+            print("💡 HƯỚNG DẪN KHẮC PHỤC TRÊN KAGGLE / COLAB:")
+            print("   • Trên Kaggle: Bảng bên phải (Notebook Options) -> Accelerator -> Đổi từ GPU P100 sang 'GPU T4' hoặc 'GPU T4 x2'.")
+            print("   • Tự động chuyển chế độ chạy tạm sang CPU để tránh crash chương trình...")
+            print("!" * 75 + "\n")
+            return torch.device("cpu")
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def compute_metrics(scores: np.ndarray, labels: np.ndarray) -> Dict[str, float]:
     """
     Computes ROC-AUC score, Best Balanced Accuracy, and optimal Decision Threshold.
@@ -45,6 +68,45 @@ def compute_metrics(scores: np.ndarray, labels: np.ndarray) -> Dict[str, float]:
         "best_threshold": float(best_threshold)
     }
 
+def wrap_model_multigpu(
+    model: torch.nn.Module,
+    device: torch.device,
+    use_multigpu: bool = True
+) -> Tuple[torch.nn.Module, int]:
+    """
+    Wraps model with torch.nn.DataParallel if use_multigpu is True and multiple GPUs exist.
+    
+    Args:
+        model: PyTorch model module
+        device: Target device (torch.device)
+        use_multigpu: If True, enables DataParallel when torch.cuda.device_count() > 1.
+                      If False, forces single-GPU mode on device 0.
+                      
+    Returns:
+        (model, gpu_count)
+    """
+    if device.type == "cuda":
+        gpu_count = torch.cuda.device_count()
+        if use_multigpu and gpu_count > 1:
+            gpu_names = [torch.cuda.get_device_name(i) for i in range(gpu_count)]
+            print(f"\n⚡ MULTI-GPU DATA-PARALLEL: Found {gpu_count} GPUs!")
+            for idx, name in enumerate(gpu_names):
+                print(f"   -> GPU [{idx}]: {name}")
+            print(f"🚀 DataParallel enabled across all {gpu_count} GPUs for training & inference!\n")
+            model = torch.nn.DataParallel(model)
+            return model, gpu_count
+        else:
+            gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "GPU"
+            if not use_multigpu and gpu_count > 1:
+                print(f"⚡ Single-GPU mode forced (--no_multigpu). Using GPU [0]: {gpu_name}")
+            else:
+                print(f"⚡ Single-GPU mode active: {gpu_name}")
+            return model, 1
+    else:
+        print("💻 CPU mode active.")
+        return model, 0
+
+
 def save_checkpoint(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
@@ -53,11 +115,12 @@ def save_checkpoint(
     filepath: str,
     scheduler: Optional[Any] = None
 ):
-    """Saves model state and training state to file."""
+    """Saves model state and training state to file (supports DataParallel models)."""
     Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+    raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
     checkpoint = {
         "epoch": epoch,
-        "model_state_dict": model.state_dict(),
+        "model_state_dict": raw_model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "loss": loss
     }
@@ -73,12 +136,18 @@ def load_checkpoint(
     scheduler: Optional[Any] = None,
     device: str = "cpu"
 ) -> Dict[str, Any]:
-    """Loads checkpoint into model, optimizer, and scheduler."""
+    """Loads checkpoint into model, optimizer, and scheduler (supports DataParallel models)."""
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"Checkpoint not found at path: {filepath}")
         
     checkpoint = torch.load(filepath, map_location=device)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    raw_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+    
+    # Strip 'module.' prefix if state_dict was saved from DataParallel
+    state_dict = checkpoint["model_state_dict"]
+    clean_state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    raw_model.load_state_dict(clean_state_dict)
+
     if optimizer is not None and "optimizer_state_dict" in checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     if scheduler is not None and "scheduler_state_dict" in checkpoint:

@@ -23,6 +23,7 @@ from zed.models import AdvancedZEDModel
 from zed.augmentations import RobustRealImageTransform
 from zed.dataset import create_train_val_datasets
 from zed.trainer import run_training
+from zed.utils import get_safe_device, wrap_model_multigpu
 
 
 def main():
@@ -38,6 +39,8 @@ def main():
     parser.add_argument("--num_workers", type=int, default=min(4, max(1, os.cpu_count() or 2)), help="DataLoader worker threads.")
     parser.add_argument("--checkpoint_dir", type=str, default="checkpoints", help="Directory to save checkpoints.")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint file (.pth) to resume training from.")
+    parser.add_argument("--multigpu", action="store_true", default=True, help="Enable multi-GPU DataParallel training if multiple GPUs exist (default: True).")
+    parser.add_argument("--no_multigpu", dest="multigpu", action="store_false", help="Force single-GPU mode even if multiple GPUs exist.")
     args = parser.parse_args()
 
     model_cfg = ModelConfig()
@@ -51,7 +54,7 @@ def main():
         checkpoint_dir=args.checkpoint_dir
     )
 
-    device = torch.device(train_cfg.device)
+    device = get_safe_device(train_cfg.device)
     print("=== Starting Advanced ZED Training Pipeline ===")
     print("Features: 2D Haar Wavelet (High-Frequency) + Spatial Self-Attention + Robust Augmentations")
     print(f"Device: {device} | Data Directory (Recursive): {train_cfg.data_dir}")
@@ -102,6 +105,9 @@ def main():
         num_heads=4,
         min_log_scale=model_cfg.min_log_scale
     ).to(device)
+
+    # Multi-GPU Auto Detection & DataParallel Wrap
+    model, gpu_count = wrap_model_multigpu(model, device, use_multigpu=args.multigpu)
 
     optimizer = torch.optim.AdamW(
         model.parameters(),

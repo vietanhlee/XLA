@@ -52,7 +52,7 @@ def train_one_epoch(
         if mixed_precision and device.type == "cuda":
             with torch.amp.autocast(device_type=device.type):
                 output_dict = model(batch_images, compute_entropy=False)
-                loss = output_dict["total_loss"]
+                loss = output_dict["total_loss"].mean()
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
@@ -61,7 +61,7 @@ def train_one_epoch(
             scaler.update()
         else:
             output_dict = model(batch_images, compute_entropy=False)
-            loss = output_dict["total_loss"]
+            loss = output_dict["total_loss"].mean()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
             optimizer.step()
@@ -113,10 +113,10 @@ def validate_one_epoch(
         if mixed_precision and device.type == "cuda":
             with torch.amp.autocast(device_type=device.type):
                 output_dict = model(batch_images, compute_entropy=False)
-                loss = output_dict["total_loss"]
+                loss = output_dict["total_loss"].mean()
         else:
             output_dict = model(batch_images, compute_entropy=False)
-            loss = output_dict["total_loss"]
+            loss = output_dict["total_loss"].mean()
 
         total_loss += loss.item()
 
