@@ -190,6 +190,14 @@ def run_training(
         start_epoch = checkpoint.get("epoch", 0) + 1
         best_val_loss = checkpoint.get("loss", float("inf"))
         early_stopping.best_loss = best_val_loss
+        
+        # Trim history if there are entries beyond the resume point
+        if "epoch" in history and len(history["epoch"]) >= start_epoch:
+            keep_len = start_epoch - 1
+            for k in history:
+                if isinstance(history[k], list):
+                    history[k] = history[k][:keep_len]
+
         print(f"   -> Resuming from Epoch {start_epoch} (Previous best loss: {best_val_loss:.4f})")
     elif resume_path:
         print(f"⚠️ Resume checkpoint '{resume_path}' not found! Starting training from scratch (Epoch 1).")
@@ -266,14 +274,14 @@ def run_training(
         except Exception as e:
             tqdm.write(f"⚠️ Warning saving plots/history: {e}")
 
+        # Always save last checkpoint at every epoch for safe resumption
+        last_path = os.path.join(checkpoint_dir, last_checkpoint_filename)
+        save_checkpoint(model, optimizer, epoch, val_loss_val if val_loss_val is not None else train_loss, last_path, scheduler=scheduler)
+
         if epoch % save_interval == 0:
             ckpt_path = os.path.join(checkpoint_dir, f"{model_name.lower().replace(' ', '_')}_epoch_{epoch:02d}.pth")
             save_checkpoint(model, optimizer, epoch, train_loss, ckpt_path, scheduler=scheduler)
 
-    # Save last checkpoint
-    last_path = os.path.join(checkpoint_dir, last_checkpoint_filename)
-    save_checkpoint(model, optimizer, epoch, train_loss, last_path, scheduler=scheduler)
-    
     # Save final plot
     try:
         plot_training_curves(history, plot_file, model_name=model_name)
