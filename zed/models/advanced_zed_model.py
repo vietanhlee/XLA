@@ -123,8 +123,14 @@ class AdvancedZEDModel(nn.Module):
         d1 = d_levels[1]
         delta01 = d0 - d1
 
+        # Ensure total_loss has at least 1 dimension (shape (1,)) so DataParallel can gather across GPUs without UserWarning
+        if isinstance(total_nll_loss, torch.Tensor):
+            total_loss_tensor = total_nll_loss.unsqueeze(0) if total_nll_loss.dim() == 0 else total_nll_loss
+        else:
+            total_loss_tensor = torch.tensor([total_nll_loss], device=x.device)
+
         return {
-            "total_loss": total_nll_loss,
+            "total_loss": total_loss_tensor,
             "nll_levels": nll_levels,
             "h_levels": h_levels,
             "d_levels": d_levels,

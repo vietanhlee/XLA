@@ -10,6 +10,10 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
+import warnings
+
+# Filter harmless DataParallel scalar gather warning
+warnings.filterwarnings("ignore", message=".*Was asked to gather along dimension 0, but all input tensors were scalars.*")
 
 # Force unbuffered line-by-line output for tqdm on Google Colab / Notebook
 if hasattr(sys.stdout, "reconfigure"):

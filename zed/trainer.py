@@ -18,6 +18,10 @@ from zed.utils import save_checkpoint, load_checkpoint, EarlyStopping, plot_trai
 
 
 import sys
+import warnings
+
+# Suppress harmless PyTorch DataParallel scalar gather warning if triggered
+warnings.filterwarnings("ignore", message=".*Was asked to gather along dimension 0, but all input tensors were scalars.*")
 
 def train_one_epoch(
     model: nn.Module,
