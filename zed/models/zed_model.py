@@ -119,8 +119,8 @@ class ZEDModel(nn.Module):
                 low_res_context=lower_res_ctx, target_shape=target_x.shape
             )
 
-            if self.training or not compute_entropy:
-                # During training, fast path: compute only NLL map
+            if self.training or not compute_entropy or l == 2:
+                # Fast path: compute only NLL map (Level 2 does not participate in D^(0) or Delta^01)
                 B, C, H, W = target_x.shape
                 logit_w, means, log_scales = self.mixture_evaluator.parse_params(params_l, in_channels=C)
                 log_p_k = self.mixture_evaluator.log_prob_per_component(target_x, means, log_scales)
@@ -132,7 +132,7 @@ class ZEDModel(nn.Module):
                 nll_map = -log_px / 0.6931471805599453 # ln(2)
                 entropy_map = torch.zeros_like(nll_map)
             else:
-                # Test/Inference: compute exact NLL and Entropy
+                # Test/Inference for Level 0 & Level 1: compute exact NLL and Entropy
                 nll_map, entropy_map = self.mixture_evaluator.compute_nll_and_entropy(target_x, params_l)
 
             # Spatial averages across pixels (B, H, W) -> scalar per sample

@@ -140,7 +140,8 @@ class EvaluationImageDataset(Dataset):
         self,
         real_dir: str,
         fake_dir: str,
-        image_size: Tuple[int, int] = (256, 256)
+        image_size: Tuple[int, int] = (256, 256),
+        max_samples_per_class: Optional[int] = None
     ):
         super().__init__()
         self.real_dir = Path(real_dir)
@@ -149,16 +150,24 @@ class EvaluationImageDataset(Dataset):
         
         valid_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
         
-        self.items = []
+        real_items = []
         if self.real_dir.exists():
             for p in self.real_dir.rglob("*"):
                 if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
-                    self.items.append((p, 0)) # Label 0 = Real
+                    real_items.append((p, 0)) # Label 0 = Real
+                    if max_samples_per_class and len(real_items) >= max_samples_per_class:
+                        break
                     
+        fake_items = []
         if self.fake_dir.exists():
             for p in self.fake_dir.rglob("*"):
                 if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
-                    self.items.append((p, 1)) # Label 1 = Fake
+                    fake_items.append((p, 1)) # Label 1 = Fake
+                    if max_samples_per_class and len(fake_items) >= max_samples_per_class:
+                        break
+
+        self.items = real_items + fake_items
+        print(f"📊 Evaluation Dataset Loaded: {len(real_items)} Real images, {len(fake_items)} Fake images (Total: {len(self.items)}).")
 
         self.transform = T.Compose([
             T.Resize(image_size, interpolation=T.InterpolationMode.BILINEAR),

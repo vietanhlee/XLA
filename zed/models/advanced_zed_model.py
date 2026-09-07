@@ -96,7 +96,7 @@ class AdvancedZEDModel(nn.Module):
                 low_res_context=lower_res_ctx, target_shape=target_x.shape
             )
 
-            if self.training or not compute_entropy:
+            if self.training or not compute_entropy or l == 2:
                 B, C, H, W = target_x.shape
                 logit_w, means, log_scales = self.mixture_evaluator.parse_params(params_l, in_channels=C)
                 log_p_k = self.mixture_evaluator.log_prob_per_component(target_x, means, log_scales)

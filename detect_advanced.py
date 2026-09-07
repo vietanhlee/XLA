@@ -63,6 +63,7 @@ def main():
     parser.add_argument("--real_dir", type=str, default="data/test/real", help="Directory containing test REAL images.")
     parser.add_argument("--fake_dir", type=str, default="data/test/fake", help="Directory containing test FAKE / AI images.")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size.")
+    parser.add_argument("--max_samples", type=int, default=None, help="Max test images per class (real/fake). E.g. 1000 for fast testing in 2-3 mins.")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda/cpu).")
     parser.add_argument("--multigpu", action="store_true", default=True, help="Enable multi-GPU DataParallel inference if multiple GPUs exist (default: True).")
     parser.add_argument("--no_multigpu", dest="multigpu", action="store_false", help="Force single-GPU mode even if multiple GPUs exist.")
@@ -72,6 +73,8 @@ def main():
     print("=== Advanced ZED Zero-Shot Detection Evaluation ===")
     print("Features: 2D Haar Wavelet + Spatial Self-Attention")
     print(f"Device: {device}")
+    if args.max_samples:
+        print(f"Fast Evaluation Mode: Max {args.max_samples} images per class.")
 
     model_cfg = ModelConfig()
     model = AdvancedZEDModel(
@@ -93,7 +96,8 @@ def main():
 
     dataset = EvaluationImageDataset(
         real_dir=args.real_dir,
-        fake_dir=args.fake_dir
+        fake_dir=args.fake_dir,
+        max_samples_per_class=args.max_samples
     )
 
     if len(dataset) == 0:
