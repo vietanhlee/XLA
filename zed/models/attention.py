@@ -30,6 +30,9 @@ class SpatialSelfAttention(nn.Module):
         
         self.kv_pool = nn.AdaptiveAvgPool2d((kv_grid_size, kv_grid_size))
         self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1)
+        # Zero-initialize projection layer so attention block starts as an identity residual map
+        nn.init.zeros_(self.proj_out.weight)
+        nn.init.zeros_(self.proj_out.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

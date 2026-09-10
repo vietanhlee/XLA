@@ -58,9 +58,11 @@ class RealImageDataset(Dataset):
     def __getitem__(self, idx: int) -> torch.Tensor:
         path = self.image_paths[idx]
         image = Image.open(path).convert("RGB")
-        tensor_img = self.transform(image) # Range [0.0, 1.0]
-        # Convert to range [0, 255] for 8-bit discrete logistic mixture model
-        return tensor_img * 255.0
+        tensor_img = self.transform(image)
+        # Convert to range [0, 255] if still in [0.0, 1.0], avoiding accidental double scaling
+        if tensor_img.max() <= 1.0 + 1e-5:
+            tensor_img = tensor_img * 255.0
+        return torch.clamp(tensor_img, 0.0, 255.0)
 
 
 def create_train_val_datasets(

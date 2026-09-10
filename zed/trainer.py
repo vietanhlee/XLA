@@ -61,6 +61,11 @@ def train_one_epoch(
                 output_dict = model(batch_images, compute_entropy=False)
                 loss = output_dict["total_loss"].mean()
 
+            if torch.isnan(loss) or torch.isinf(loss):
+                pbar.write(f"⚠️ Batch {batch_idx}: NaN/Inf detected in loss! Skipping update.")
+                optimizer.zero_grad()
+                continue
+
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
@@ -69,6 +74,12 @@ def train_one_epoch(
         else:
             output_dict = model(batch_images, compute_entropy=False)
             loss = output_dict["total_loss"].mean()
+
+            if torch.isnan(loss) or torch.isinf(loss):
+                pbar.write(f"⚠️ Batch {batch_idx}: NaN/Inf detected in loss! Skipping update.")
+                optimizer.zero_grad()
+                continue
+
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
             optimizer.step()
@@ -111,6 +122,7 @@ def validate_one_epoch(
     """Evaluates validation NLL loss across validation set."""
     model.eval()
     total_loss = 0.0
+    valid_batches = 0
     num_batches = len(dataloader)
 
     pbar = tqdm(
@@ -132,9 +144,11 @@ def validate_one_epoch(
             output_dict = model(batch_images, compute_entropy=False)
             loss = output_dict["total_loss"].mean()
 
-        total_loss += loss.item()
+        if not (torch.isnan(loss) or torch.isinf(loss)):
+            total_loss += loss.item()
+            valid_batches += 1
 
-    return total_loss / max(1, num_batches)
+    return total_loss / max(1, valid_batches if valid_batches > 0 else num_batches)
 
 
 def run_training(

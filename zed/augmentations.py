@@ -80,5 +80,5 @@ class RobustRealImageTransform:
         # 3. Apply tensor noise
         tensor = self.noise_transform(tensor)
         
-        # 4. Scale to [0, 255] for 8-bit discrete logistic mixture model
-        return tensor * 255.0
+        # 4. Return normalized tensor [0.0, 1.0] (RealImageDataset handles scaling to [0, 255])
+        return tensor

@@ -109,6 +109,10 @@ class AdvancedZEDModel(nn.Module):
             else:
                 nll_map, entropy_map = self.mixture_evaluator.compute_nll_and_entropy(target_x, params_l)
 
+            # Numerical guard against potential inf/nan
+            nll_map = torch.nan_to_num(nll_map, nan=100.0, posinf=100.0, neginf=0.0)
+            entropy_map = torch.nan_to_num(entropy_map, nan=0.0, posinf=100.0, neginf=0.0)
+
             avg_nll = nll_map.mean(dim=[-2, -1])
             avg_h = entropy_map.mean(dim=[-2, -1])
             avg_d = avg_nll - avg_h

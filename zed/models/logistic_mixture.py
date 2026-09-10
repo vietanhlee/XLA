@@ -66,8 +66,11 @@ class DiscretizedLogisticMixture(nn.Module):
         Returns:
             log_probs: (B, K, C, H, W)
         """
-        # Expand x to match mixture component dimension K: (B, 1, C, H, W)
-        x_exp = x.unsqueeze(1)
+        orig_dtype = means.dtype
+        # Compute in float32 for rock-solid numerical precision under mixed precision (AMP)
+        x_exp = x.unsqueeze(1).float()
+        means = means.float()
+        log_scales = log_scales.float()
         inv_scales = torch.exp(-log_scales)
 
         # Scale and center
@@ -80,10 +83,6 @@ class DiscretizedLogisticMixture(nn.Module):
         cdf_minus = torch.sigmoid(minus_in)
 
         # Log probability computation with boundary checks for 8-bit discrete values
-        # Case x == 0: log(cdf_plus)
-        # Case x == 255: log(1 - cdf_minus)
-        # Case 0 < x < 255: log(cdf_plus - cdf_minus)
-        
         # Softplus/log_sigmoid for edge stability
         log_cdf_plus = F.logsigmoid(plus_in)
         log_one_minus_cdf_minus = F.logsigmoid(-minus_in)
@@ -91,7 +90,7 @@ class DiscretizedLogisticMixture(nn.Module):
         # Mid-range difference CDF
         cdf_delta = cdf_plus - cdf_minus
         # Clamp delta to prevent log(0)
-        log_cdf_delta = torch.log(torch.clamp(cdf_delta, min=1e-12))
+        log_cdf_delta = torch.log(torch.clamp(cdf_delta, min=1e-7))
 
         # Select based on x values
         log_probs = torch.where(
@@ -103,7 +102,7 @@ class DiscretizedLogisticMixture(nn.Module):
                 log_cdf_delta
             )
         )
-        return log_probs
+        return log_probs.to(orig_dtype)
 
     def compute_nll_and_entropy(
         self, x: torch.Tensor, params: torch.Tensor
