@@ -47,6 +47,30 @@ def main():
     parser.add_argument("--no_multigpu", dest="multigpu", action="store_false", help="Force single-GPU mode even if multiple GPUs exist.")
     args = parser.parse_args()
 
+    # Auto-detect dataset directory on Kaggle if default local path does not exist
+    if not os.path.exists(args.data_dir) and os.path.exists("/kaggle/input"):
+        kaggle_input = Path("/kaggle/input")
+        valid_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+        detected_dir = None
+        # First priority: directory with 'xla' or 'real' in its name
+        for p in kaggle_input.rglob("*"):
+            if p.is_dir() and any(k in p.name.lower() for k in ["xla", "real"]):
+                detected_dir = str(p)
+                break
+        if not detected_dir:
+            # Second priority: any directory containing images
+            for p in kaggle_input.rglob("*"):
+                if p.is_dir():
+                    try:
+                        if any(f.suffix.lower() in valid_exts for f in p.iterdir() if f.is_file()):
+                            detected_dir = str(p)
+                            break
+                    except Exception:
+                        continue
+        if detected_dir:
+            print(f"💡 Auto-detected Kaggle dataset directory: {detected_dir}")
+            args.data_dir = detected_dir
+
     model_cfg = ModelConfig()
     train_cfg = TrainConfig(
         data_dir=args.data_dir,
