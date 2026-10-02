@@ -78,10 +78,9 @@ class AdvancedSReCCNN(nn.Module):
         """
         B, C, H, W = target_shape
         
-        # Extract 2D Haar Wavelet high-frequency subbands from low-res context
-        _, high_freq_subbands = self.wavelet(low_res_context) # (B, 3*C, H_low/2, W_low/2)
-
-        # Upsample spatial context and high-freq features to target (H, W)
+        # === FIX: Upsample context lên target resolution TRƯỚC, rồi mới áp wavelet ===
+        # Trước đây wavelet(low_res_context) ở H/2 → output H/4 → upsample 4x = PHÁ HỦY tần số.
+        # Bây giờ: upsample context → H, wavelet(H) → output H/2, upsample 2x = BẢO TOÀN tần số.
         if low_res_context.shape[-2:] != (H, W):
             upsampled_ctx = F.interpolate(
                 low_res_context, size=(H, W), mode="bilinear", align_corners=False
@@ -89,11 +88,17 @@ class AdvancedSReCCNN(nn.Module):
         else:
             upsampled_ctx = low_res_context
 
+        # Trích xuất dải tần số cao (LH, HL, HH) từ context ĐÃ upsample lên target resolution
+        # Output: high_freq shape (B, 3*C, H/2, W/2) — chỉ giảm 2x thay vì 4x như trước
+        _, high_freq_subbands = self.wavelet(upsampled_ctx)
+
+        # Upsample wavelet features chỉ 2x bằng nearest (bảo toàn biên tần, không làm mờ)
+        # Bilinear là bộ lọc low-pass — phá hủy chính thông tin tần số cao mà wavelet vừa trích xuất
         upsampled_high_freq = F.interpolate(
-            high_freq_subbands, size=(H, W), mode="bilinear", align_corners=False
+            high_freq_subbands, size=(H, W), mode="nearest"
         )
 
-        # Concatenate spatial and high-frequency DWT features: shape (B, C + 3*C, H, W)
+        # Concatenate spatial và high-frequency DWT features: shape (B, C + 3*C, H, W)
         fused_input = torch.cat([upsampled_ctx, upsampled_high_freq], dim=1)
 
         # Feature processing
