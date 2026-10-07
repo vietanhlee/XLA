@@ -9,6 +9,8 @@ from .wavelet import HaarWavelet2D
 from .attention import SpatialSelfAttention
 from .advanced_cnn_encoder import AdvancedSReCCNN
 from .advanced_zed_model import AdvancedZEDModel
+from .convnext_encoder import ConvNeXtSReCCNN, ConvNeXtBlock, EfficientChannelAttention
+from .modern_zed_model import ModernZEDModel
 
 __all__ = [
     "DiscretizedLogisticMixture",
@@ -17,5 +19,9 @@ __all__ = [
     "HaarWavelet2D",
     "SpatialSelfAttention",
     "AdvancedSReCCNN",
-    "AdvancedZEDModel"
+    "AdvancedZEDModel",
+    "ConvNeXtBlock",
+    "ConvNeXtSReCCNN",
+    "EfficientChannelAttention",
+    "ModernZEDModel"
 ]

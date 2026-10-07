@@ -276,11 +276,12 @@ def plot_detection_dashboard(
     labels: np.ndarray,
     metrics_d0: Dict[str, float],
     output_path: str,
-    model_name: str = "ZED"
+    model_name: str = "ZED",
+    d0_top10_scores: Optional[np.ndarray] = None
 ):
     """
     Plots a publication-ready 4-panel Zero-Shot Detection Evaluation Dashboard:
-      1. ROC Curves for D^(0), |D^(0)|, |Delta^01|
+      1. ROC Curves for D^(0), |D^(0)|, |Delta^01|, and optional Top-10% Patch Anomaly D^(0)_top10
       2. Precision-Recall (PR) Curves
       3. Real vs AI Score Density Histogram & Optimal Threshold Line
       4. Confusion Matrix Heatmap
@@ -293,7 +294,7 @@ def plot_detection_dashboard(
     fig, axes = plt.subplots(2, 2, figsize=(15, 12), dpi=200)
     fig.suptitle(f"{model_name} - Zero-Shot AI Image Detection Performance Dashboard", fontsize=15, fontweight="bold", y=0.98)
 
-    colors = {"d0": "#1f77b4", "abs_d0": "#ff7f0e", "delta01": "#2ca02c"}
+    colors = {"d0": "#1f77b4", "abs_d0": "#ff7f0e", "delta01": "#2ca02c", "top10": "#9467bd"}
 
     # -------------------------------------------------------------
     # Panel 1: ROC Curves
@@ -307,7 +308,11 @@ def plot_detection_dashboard(
     auc_abs = roc_auc_score(labels, abs_d0_scores) * 100.0
     auc_del = roc_auc_score(labels, delta01_scores) * 100.0
 
-    ax1.plot(fpr_d0, tpr_d0, color=colors["d0"], linewidth=2.2, label=f"$D^{(0)}$ Coding Cost (AUC = {auc_d0:.2f}%)")
+    ax1.plot(fpr_d0, tpr_d0, color=colors["d0"], linewidth=2.2, label=f"$D^{(0)}$ Mean Coding Cost (AUC = {auc_d0:.2f}%)")
+    if d0_top10_scores is not None:
+        fpr_top, tpr_top, _ = roc_curve(labels, d0_top10_scores)
+        auc_top = roc_auc_score(labels, d0_top10_scores) * 100.0
+        ax1.plot(fpr_top, tpr_top, color=colors["top10"], linewidth=2.2, linestyle=":", label=f"$D^{{(0)}}_{{\\mathrm{{top10}}}}$ Patch Anomaly (AUC = {auc_top:.2f}%)")
     ax1.plot(fpr_abs, tpr_abs, color=colors["abs_d0"], linewidth=2.2, linestyle="--", label=f"$|D^{(0)}|$ Magnitude (AUC = {auc_abs:.2f}%)")
     ax1.plot(fpr_del, tpr_del, color=colors["delta01"], linewidth=2.2, linestyle="-.", label=f"$|\\Delta^{{01}}|$ Residual (AUC = {auc_del:.2f}%)")
     ax1.plot([0, 1], [0, 1], color="gray", linestyle=":", linewidth=1.5, label="Random Guess (AUC = 50.0%)")
