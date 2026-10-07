@@ -24,7 +24,7 @@ sys.path.append(str(Path(__file__).resolve().parent))
 
 from config import ModelConfig, TrainConfig
 from zed.models import ModernZEDModel
-from zed.augmentations import DensityPreservingTransform
+from zed.augmentations import DensityPreservingTransform, NativeCenterCropTransform
 from zed.dataset import create_train_val_datasets
 from zed.trainer import run_training
 from zed.utils import get_safe_device, wrap_model_multigpu
@@ -90,15 +90,17 @@ def main():
         print(f"Warning: Directory '{train_cfg.data_dir}' does not exist yet. Creating directory.")
         os.makedirs(train_cfg.data_dir, exist_ok=True)
 
-    # 1. State-of-the-Art Density Preserving Transform for Training
+    # 1. State-of-the-Art Density Preserving Transform for Training and Validation
     train_transform = DensityPreservingTransform(image_size=train_cfg.image_size)
+    val_transform = NativeCenterCropTransform(image_size=train_cfg.image_size)
 
-    # Create Datasets with Recursive Scanning and Train/Val Split
+    # Create Datasets with Recursive Scanning and Train/Val Split (Zero-Blur on both)
     train_dataset, val_dataset = create_train_val_datasets(
         data_dir=train_cfg.data_dir,
         val_split=args.val_split,
         image_size=train_cfg.image_size,
         train_transform=train_transform,
+        val_transform=val_transform,
         seed=42
     )
 

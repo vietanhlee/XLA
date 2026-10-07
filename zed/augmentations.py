@@ -1,87 +1,17 @@
 """
-Robust Data Augmentation Pipeline for Real-Image Density Estimation.
-Simulates real-world internet noise (JPEG compression, resizing, sensor noise, blur)
-to prevent false positive alarms on compressed/processed real images.
+Density-Preserving Data Augmentation Pipeline for Real-Image Density Estimation.
+Guarantees:
+  1. Zero resampling blur: NativeResolutionCrop preserves raw camera sensor PRNU & Bayer CFA.
+  2. Perfect pixel integrity: D4 discrete symmetries (Rot90 + Flips) without interpolation.
+  3. Clean target distribution: Eliminates artificial noise injection that skews NLL.
 """
 
-import io
 import random
-import torch
-import torch.nn as nn
-import torchvision.transforms as T
-import torchvision.transforms.functional as TF
-from PIL import Image
 from typing import Tuple
+from PIL import Image
 
-class DynamicJPEGCompression:
-    """Simulates random JPEG compression artifacting on PIL Image."""
-    def __init__(self, quality_range: Tuple[int, int] = (50, 95), p: float = 0.5):
-        self.quality_range = quality_range
-        self.p = p
-
-    def __call__(self, img: Image.Image) -> Image.Image:
-        if random.random() > self.p:
-            return img
-
-        quality = random.randint(self.quality_range[0], self.quality_range[1])
-        output = io.BytesIO()
-        img.save(output, format="JPEG", quality=quality)
-        output.seek(0)
-        return Image.open(output).convert("RGB")
-
-class AdditiveGaussianNoise:
-    """Adds random Gaussian sensor noise to image tensor in range [0.0, 1.0]."""
-    def __init__(self, std_range: Tuple[float, float] = (0.0, 0.03), p: float = 0.3):
-        self.std_range = std_range
-        self.p = p
-
-    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
-        if random.random() > self.p:
-            return tensor
-        
-        std = random.uniform(self.std_range[0], self.std_range[1])
-        noise = torch.randn_like(tensor) * std
-        return torch.clamp(tensor + noise, 0.0, 1.0)
-
-class RobustRealImageTransform:
-    """
-    Complete Robust Pipeline for Training Real Image Density Estimator.
-    Combines:
-      - Random JPEG Compression
-      - Random Resizing & Scale Jittering
-      - Random Blur
-      - Additive Noise
-    """
-
-    def __init__(
-        self,
-        image_size: Tuple[int, int] = (256, 256),
-        jpeg_p: float = 0.5,
-        jpeg_quality: Tuple[int, int] = (50, 95),
-        noise_p: float = 0.3
-    ):
-        self.image_size = image_size
-        self.jpeg_transform = DynamicJPEGCompression(quality_range=jpeg_quality, p=jpeg_p)
-        self.noise_transform = AdditiveGaussianNoise(p=noise_p)
-
-        self.pil_transform = T.Compose([
-            T.Resize((int(image_size[0] * 1.1), int(image_size[1] * 1.1)), interpolation=T.InterpolationMode.BILINEAR),
-            T.RandomCrop(image_size),
-        ])
-
-    def __call__(self, img: Image.Image) -> torch.Tensor:
-        # 1. Apply PIL transforms & JPEG compression
-        img = self.pil_transform(img)
-        img = self.jpeg_transform(img)
-        
-        # 2. Convert to tensor [0.0, 1.0]
-        tensor = TF.to_tensor(img)
-        
-        # 3. Apply tensor noise
-        tensor = self.noise_transform(tensor)
-        
-        # 4. Return normalized tensor [0.0, 1.0] (RealImageDataset handles scaling to [0, 255])
-        return tensor
+import torch
+import torchvision.transforms.functional as TF
 
 
 class NativeResolutionCrop:
@@ -143,11 +73,8 @@ class D4SymmetryTransform:
 
 class DensityPreservingTransform:
     """
-    State-of-the-Art Data Transform for Likelihood-based Density Estimation (ZED).
-    Guarantees:
-      1. Zero resampling blur: NativeResolutionCrop preserves raw camera sensor statistics.
-      2. Perfect pixel integrity: D4 discrete symmetries (Rot90 + Flips) without interpolation.
-      3. Clean target distribution: Eliminates artificial noise injection that skews NLL.
+    State-of-the-Art Data Transform for Training Likelihood-based Density Estimators (ZED).
+    Applies Native Crop followed by discrete D4 symmetries.
     """
     def __init__(self, image_size: Tuple[int, int] = (256, 256)):
         self.crop = NativeResolutionCrop(image_size=image_size)
@@ -160,3 +87,31 @@ class DensityPreservingTransform:
         img = self.d4(img)
         # 3. Convert to float tensor [0.0, 1.0]
         return TF.to_tensor(img)
+
+
+class NativeCenterCropTransform:
+    """
+    Deterministic Center Crop at native camera resolution for Validation & Evaluation.
+    Zero-interpolation: Crops the central image_size patch directly without bilinear resampling.
+    Preserves 100% of raw camera PRNU noise and AI generation artifacts on test sets.
+    Only resizes if image dimensions are smaller than image_size.
+    """
+    def __init__(self, image_size: Tuple[int, int] = (256, 256)):
+        self.image_size = image_size
+
+    def __call__(self, img: Image.Image) -> torch.Tensor:
+        w, h = img.size
+        target_h, target_w = self.image_size
+
+        if w < target_w or h < target_h:
+            scale = max(target_w / w, target_h / h)
+            new_w = int(w * scale + 0.5)
+            new_h = int(h * scale + 0.5)
+            img = img.resize((new_w, new_h), resample=Image.Resampling.BILINEAR)
+            w, h = img.size
+
+        # Center crop without resampling
+        left = max(0, (w - target_w) // 2)
+        top = max(0, (h - target_h) // 2)
+        cropped_img = img.crop((left, top, left + target_w, top + target_h))
+        return TF.to_tensor(cropped_img)

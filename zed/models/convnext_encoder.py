@@ -69,7 +69,7 @@ class ConvNeXtBlock(nn.Module):
       6. 1x1 Conv (Project back)
       7. Layer Scale with residual addition
     """
-    def __init__(self, channels: int, expansion: int = 4, layer_scale_init_value: float = 1e-6):
+    def __init__(self, channels: int, expansion: int = 4, layer_scale_init_value: float = 1.0):
         super().__init__()
         # 7x7 Depthwise Conv
         self.dwconv = nn.Conv2d(channels, channels, kernel_size=7, padding=3, groups=channels)
@@ -86,7 +86,7 @@ class ConvNeXtBlock(nn.Module):
         # 1x1 Pointwise projection
         self.pwconv2 = nn.Conv2d(hidden_dim, channels, kernel_size=1)
         
-        # Layer scale parameter for smooth training dynamics
+        # Layer scale parameter initialized to 1.0 for immediate full gradient flow in shallow 4-block network
         self.gamma = nn.Parameter(
             layer_scale_init_value * torch.ones(channels, 1, 1), requires_grad=True
         ) if layer_scale_init_value > 0 else None
@@ -127,15 +127,16 @@ class ConvNeXtSReCCNN(nn.Module):
         # For C=3, K=10 -> 10 + 30 + 30 = 70 channels
         self.out_channels = num_mixtures * (1 + 2 * in_channels)
 
-        # Context stem processor: 7x7 conv into hidden channels
+        # Context stem processor: 7x7 conv into hidden channels + LayerNorm + GELU
         self.stem = nn.Sequential(
             nn.Conv2d(in_channels, hidden_channels, kernel_size=7, padding=3),
-            LayerNorm2d(hidden_channels)
+            LayerNorm2d(hidden_channels),
+            nn.GELU()
         )
 
-        # ConvNeXt backbone
+        # ConvNeXt backbone with full gradient participation
         self.blocks = nn.ModuleList([
-            ConvNeXtBlock(channels=hidden_channels, expansion=4)
+            ConvNeXtBlock(channels=hidden_channels, expansion=4, layer_scale_init_value=1.0)
             for _ in range(num_blocks)
         ])
 

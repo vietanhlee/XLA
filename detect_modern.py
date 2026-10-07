@@ -27,13 +27,14 @@ def evaluate_modern_zero_shot(
     model: ModernZEDModel,
     dataloader: DataLoader,
     device: torch.device
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     model.eval()
 
     all_labels = []
     all_d0 = []
     all_abs_d0 = []
     all_d0_top10 = []
+    all_d0_std = []
     all_delta01 = []
 
     print("Evaluating test images with Modern ZED (computing exact NLL, Entropy, and Patch Anomaly)...")
@@ -45,12 +46,14 @@ def evaluate_modern_zero_shot(
             d0 = output_dict["d0"].cpu().numpy()
             abs_d0 = output_dict["abs_d0"].cpu().numpy()
             d0_top10 = output_dict["d0_top10"].cpu().numpy()
+            d0_std = output_dict["d0_std"].cpu().numpy()
             abs_delta01 = output_dict["abs_delta01"].cpu().numpy()
 
             all_labels.extend(labels.numpy())
             all_d0.extend(d0)
             all_abs_d0.extend(abs_d0)
             all_d0_top10.extend(d0_top10)
+            all_d0_std.extend(d0_std)
             all_delta01.extend(abs_delta01)
 
     return (
@@ -58,6 +61,7 @@ def evaluate_modern_zero_shot(
         np.array(all_d0),
         np.array(all_abs_d0),
         np.array(all_d0_top10),
+        np.array(all_d0_std),
         np.array(all_delta01)
     )
 
@@ -115,23 +119,26 @@ def main():
         num_workers=2 if device.type == "cuda" else 0
     )
 
-    labels, d0_scores, abs_d0_scores, d0_top10_scores, delta01_scores = evaluate_modern_zero_shot(model, dataloader, device)
+    labels, d0_scores, abs_d0_scores, d0_top10_scores, d0_std_scores, delta01_scores = evaluate_modern_zero_shot(model, dataloader, device)
 
     print("\n" + "="*60)
     print(" === MODERN ZED ZERO-SHOT DETECTION PERFORMANCE RESULTS ===")
     print("="*60)
 
     metrics_d0 = compute_metrics(d0_scores, labels)
-    print(f"[Stat D^(0) Mean]       -> ROC-AUC: {metrics_d0['auc']:.2f}% | Best Acc: {metrics_d0['best_acc']:.2f}% | Threshold: {metrics_d0['best_threshold']:.4f}")
+    print(f"[Stat D^(0) Mean]          -> ROC-AUC: {metrics_d0['auc']:.2f}% | Best Acc: {metrics_d0['best_acc']:.2f}% | Threshold: {metrics_d0['best_threshold']:.4f}")
 
     metrics_d0_top10 = compute_metrics(d0_top10_scores, labels)
-    print(f"[Stat D^(0) Top-10%]    -> ROC-AUC: {metrics_d0_top10['auc']:.2f}% | Best Acc: {metrics_d0_top10['best_acc']:.2f}% | Threshold: {metrics_d0_top10['best_threshold']:.4f}")
+    print(f"[Stat D^(0) Top-10%]       -> ROC-AUC: {metrics_d0_top10['auc']:.2f}% | Best Acc: {metrics_d0_top10['best_acc']:.2f}% | Threshold: {metrics_d0_top10['best_threshold']:.4f}")
+
+    metrics_d0_std = compute_metrics(d0_std_scores, labels)
+    print(f"[Stat D^(0) Spatial Std]   -> ROC-AUC: {metrics_d0_std['auc']:.2f}% | Best Acc: {metrics_d0_std['best_acc']:.2f}% | Threshold: {metrics_d0_std['best_threshold']:.4f}")
 
     metrics_abs_d0 = compute_metrics(abs_d0_scores, labels)
-    print(f"[Stat |D^(0)|]          -> ROC-AUC: {metrics_abs_d0['auc']:.2f}% | Best Acc: {metrics_abs_d0['best_acc']:.2f}% | Threshold: {metrics_abs_d0['best_threshold']:.4f}")
+    print(f"[Stat |D^(0)|]             -> ROC-AUC: {metrics_abs_d0['auc']:.2f}% | Best Acc: {metrics_abs_d0['best_acc']:.2f}% | Threshold: {metrics_abs_d0['best_threshold']:.4f}")
 
     metrics_delta01 = compute_metrics(delta01_scores, labels)
-    print(f"[Stat |Delta^01|]       -> ROC-AUC: {metrics_delta01['auc']:.2f}% | Best Acc: {metrics_delta01['best_acc']:.2f}% | Threshold: {metrics_delta01['best_threshold']:.4f}")
+    print(f"[Stat |Delta^01|]          -> ROC-AUC: {metrics_delta01['auc']:.2f}% | Best Acc: {metrics_delta01['best_acc']:.2f}% | Threshold: {metrics_delta01['best_threshold']:.4f}")
 
     print("="*60)
 
@@ -154,6 +161,7 @@ def main():
     summary_metrics = {
         "d0_mean": metrics_d0,
         "d0_top10": metrics_d0_top10,
+        "d0_std": metrics_d0_std,
         "abs_d0": metrics_abs_d0,
         "delta01": metrics_delta01
     }

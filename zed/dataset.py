@@ -143,7 +143,8 @@ class EvaluationImageDataset(Dataset):
         real_dir: str,
         fake_dir: str,
         image_size: Tuple[int, int] = (256, 256),
-        max_samples_per_class: Optional[int] = None
+        max_samples_per_class: Optional[int] = None,
+        transform: Optional[Callable] = None
     ):
         super().__init__()
         self.real_dir = Path(real_dir)
@@ -171,11 +172,12 @@ class EvaluationImageDataset(Dataset):
         self.items = real_items + fake_items
         print(f"📊 Evaluation Dataset Loaded: {len(real_items)} Real images, {len(fake_items)} Fake images (Total: {len(self.items)}).")
 
-        self.transform = T.Compose([
-            T.Resize(image_size, interpolation=T.InterpolationMode.BILINEAR),
-            T.CenterCrop(image_size),
-            T.ToTensor()
-        ])
+        if transform is not None:
+            self.transform = transform
+        else:
+            # Default to zero-blur native center crop preserving raw camera sensor noise
+            from .augmentations import NativeCenterCropTransform
+            self.transform = NativeCenterCropTransform(image_size=image_size)
 
     def __len__(self) -> int:
         return len(self.items)
@@ -183,5 +185,8 @@ class EvaluationImageDataset(Dataset):
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
         path, label = self.items[idx]
         image = Image.open(path).convert("RGB")
-        tensor_img = self.transform(image) * 255.0
-        return tensor_img, label, str(path)
+        tensor_img = self.transform(image)
+        # Ensure tensor is scaled to [0, 255]
+        if tensor_img.max() <= 1.0 + 1e-5:
+            tensor_img = tensor_img * 255.0
+        return torch.clamp(tensor_img, 0.0, 255.0), label, str(path)

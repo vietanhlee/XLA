@@ -13,7 +13,7 @@ from PIL import Image
 
 sys.path.append(str(Path(__file__).resolve().parent))
 
-from zed.augmentations import DensityPreservingTransform, D4SymmetryTransform, NativeResolutionCrop
+from zed.augmentations import DensityPreservingTransform, D4SymmetryTransform, NativeResolutionCrop, NativeCenterCropTransform
 from zed.models import ModernZEDModel, ConvNeXtSReCCNN
 
 
@@ -23,12 +23,16 @@ def test_pipeline():
     print("=" * 60)
 
     # 1. Test Density-Preserving Transforms
-    print("[1/3] Testing DensityPreservingTransform...")
+    print("[1/3] Testing DensityPreservingTransform & NativeCenterCropTransform...")
     dummy_pil = Image.new("RGB", (512, 512), color=(128, 128, 128))
     transform = DensityPreservingTransform(image_size=(256, 256))
     transformed_tensor = transform(dummy_pil)
     assert transformed_tensor.shape == (3, 256, 256), f"Shape mismatch: {transformed_tensor.shape}"
-    print("  ✓ DensityPreservingTransform verified! Shape:", transformed_tensor.shape)
+
+    val_transform = NativeCenterCropTransform(image_size=(256, 256))
+    val_tensor = val_transform(dummy_pil)
+    assert val_tensor.shape == (3, 256, 256), f"Shape mismatch: {val_tensor.shape}"
+    print("  ✓ Transforms verified! Shapes:", transformed_tensor.shape, val_tensor.shape)
 
     # 2. Test Model Instantiation & Forward Pass (Training Mode)
     print("[2/3] Testing ModernZEDModel Forward & Backward (Train Mode)...")
@@ -50,7 +54,7 @@ def test_pipeline():
     print(f"  ✓ Forward & Backward passed! Total Loss: {loss.item():.4f}")
 
     # 3. Test Model Evaluation Mode (Inference Mode with exact Entropy & Top-10% Anomaly)
-    print("[3/3] Testing ModernZEDModel Inference Mode (Exact Entropy + Top-10% Anomaly)...")
+    print("[3/3] Testing ModernZEDModel Inference Mode (Exact Entropy + Top-10% + Std)...")
     model.eval()
     with torch.no_grad():
         x_val = torch.randint(0, 256, (2, 3, 256, 256), dtype=torch.float32, device=device)
@@ -58,10 +62,12 @@ def test_pipeline():
 
     d0 = output_eval["d0"]
     d0_top10 = output_eval["d0_top10"]
+    d0_std = output_eval["d0_std"]
     delta01 = output_eval["delta01"]
 
     print(f"  ✓ D^(0) Mean shape: {d0.shape} | Values: {d0.cpu().numpy()}")
     print(f"  ✓ D^(0) Top-10% shape: {d0_top10.shape} | Values: {d0_top10.cpu().numpy()}")
+    print(f"  ✓ D^(0) Std shape: {d0_std.shape} | Values: {d0_std.cpu().numpy()}")
     print(f"  ✓ Delta^01 shape: {delta01.shape} | Values: {delta01.cpu().numpy()}")
 
     print("=" * 60)
