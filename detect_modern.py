@@ -7,6 +7,13 @@ import os
 import sys
 import argparse
 from pathlib import Path
+
+# Safe OpenMP workaround for Windows / multi-library environments
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+# Safe UTF-8 console output for Windows / Notebook environments
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from typing import Tuple
 
 import torch
@@ -72,17 +79,27 @@ def main():
     parser.add_argument("--real_dir", type=str, default="data/test/real", help="Directory containing test REAL images.")
     parser.add_argument("--fake_dir", type=str, default="data/test/fake", help="Directory containing test FAKE / AI images.")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for inference.")
+    parser.add_argument("--limit", type=int, default=None, help="Giới hạn số lượng ảnh AI / Fake được nạp từ folder AI detect (ví dụ: --limit 500 hoặc 1000).")
+    parser.add_argument("--limit_fake", type=int, default=None, help="Alias cho --limit: giới hạn số lượng ảnh AI.")
+    parser.add_argument("--limit_real", type=int, default=None, help="Giới hạn số lượng ảnh Real được nạp từ real_dir (tùy chọn).")
     parser.add_argument("--max_samples", type=int, default=None, help="Max test images per class (real/fake). E.g. 1000 for fast testing.")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda/cpu).")
     parser.add_argument("--multigpu", action="store_true", default=True, help="Enable multi-GPU DataParallel inference if multiple GPUs exist (default: True).")
     parser.add_argument("--no_multigpu", dest="multigpu", action="store_false", help="Force single-GPU mode even if multiple GPUs exist.")
     args = parser.parse_args()
 
+    fake_limit = args.limit if args.limit is not None else (args.limit_fake if args.limit_fake is not None else args.max_samples)
+    real_limit = args.limit_real if args.limit_real is not None else args.max_samples
+
     device = get_safe_device(args.device)
     print("=== Modern ZED Zero-Shot Detection Evaluation ===")
     print("Architecture: ConvNeXt-SReC (7x7 Depthwise Conv + ECA)")
     print(f"Device: {device}")
-    if args.max_samples:
+    print(f"Real Dir: {args.real_dir}")
+    print(f"Fake Dir: {args.fake_dir}")
+    if fake_limit is not None or real_limit is not None:
+        print(f"Limit Settings -> AI/Fake limit: {fake_limit} | Real limit: {real_limit}")
+    elif args.max_samples:
         print(f"Fast Evaluation Mode: Max {args.max_samples} images per class.")
 
     model_cfg = ModelConfig()
@@ -105,7 +122,9 @@ def main():
     dataset = EvaluationImageDataset(
         real_dir=args.real_dir,
         fake_dir=args.fake_dir,
-        max_samples_per_class=args.max_samples
+        max_samples_per_class=args.max_samples,
+        max_fake_samples=fake_limit,
+        max_real_samples=real_limit
     )
 
     if len(dataset) == 0:

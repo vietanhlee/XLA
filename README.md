@@ -64,8 +64,9 @@ python train_modern.py --data_dir "C:\Users\levie\Downloads\img\images" --val_sp
 
 ### 3. Suy luận & Đánh giá Zero-Shot với Modern ZED
 ```cmd
-python detect_modern.py --checkpoint checkpoints/zed_modern_best.pth --real_dir data/test/real --fake_dir data/test/fake
+python detect_modern.py --checkpoint checkpoints/zed_modern_best.pth --real_dir data/test/real --fake_dir data/test/fake --limit 1000
 ```
+- Tuỳ chọn `--limit 1000`: Giới hạn số lượng ảnh AI từ folder AI để kiểm tra nhanh, tránh mất hàng tiếng khi dataset AI quá lớn.
 - Đánh giá toàn diện 5 chỉ số thống kê:
   - $D^{(0)}$ Mean Coding Cost
   - $D^{(0)}_{\text{top10}}$ Top-10% Patch Anomaly (cực nhạy với ảnh AI bị lỗi chi tiết cục bộ)
@@ -76,7 +77,15 @@ python detect_modern.py --checkpoint checkpoints/zed_modern_best.pth --real_dir 
 
 ---
 
-### 4. Huấn luyện Mô hình Standard ZED Tiêu Chuẩn (Baseline So Sánh)
+### 4. Suy luận & Đánh giá Zero-Shot với Standard ZED
+```cmd
+# Chạy với giới hạn ảnh AI (ví dụ: --limit 500 hoặc 1000)
+python zed/detect.py --checkpoint checkpoints/zed_best.pth --real_dir data/test/real --fake_dir data/test/fake --limit 1000 --multigpu
+```
+
+---
+
+### 5. Huấn luyện Mô hình Standard ZED Tiêu Chuẩn (Baseline So Sánh)
 ```cmd
 python train.py --data_dir "C:\Users\levie\Downloads\img\images" --val_split 0.15 --epochs 50 --batch_size 16 --lr 0.0001 --patience 7
 ```

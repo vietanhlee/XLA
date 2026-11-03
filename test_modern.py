@@ -6,8 +6,17 @@ Verifies:
   3. Calculation of D^(0), D^(0)_top10, Delta^01
 """
 
+import os
 import sys
 from pathlib import Path
+
+# Safe OpenMP workaround for Windows
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+# UTF-8 stdout configuration for Windows terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 import torch
 from PIL import Image
 
@@ -69,6 +78,23 @@ def test_pipeline():
     print(f"  ✓ D^(0) Top-10% shape: {d0_top10.shape} | Values: {d0_top10.cpu().numpy()}")
     print(f"  ✓ D^(0) Std shape: {d0_std.shape} | Values: {d0_std.cpu().numpy()}")
     print(f"  ✓ Delta^01 shape: {delta01.shape} | Values: {delta01.cpu().numpy()}")
+
+    # 4. Test EvaluationImageDataset limits
+    print("[4/4] Testing EvaluationImageDataset limit arguments...")
+    import tempfile
+    from zed.dataset import EvaluationImageDataset
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        real_tmp = Path(tmp_dir) / "real"
+        fake_tmp = Path(tmp_dir) / "fake"
+        real_tmp.mkdir()
+        fake_tmp.mkdir()
+        for i in range(5):
+            Image.new("RGB", (64, 64)).save(real_tmp / f"real_{i}.png")
+            Image.new("RGB", (64, 64)).save(fake_tmp / f"fake_{i}.png")
+
+        ds = EvaluationImageDataset(str(real_tmp), str(fake_tmp), max_fake_samples=2, max_real_samples=3)
+        assert len(ds) == 5, f"Expected 5 items (3 real + 2 fake), got {len(ds)}"
+        print(f"  ✓ EvaluationImageDataset limit verified! Total items: {len(ds)} (3 Real + 2 Fake)")
 
     print("=" * 60)
     print("🎉 ALL CHECKS PASSED SUCCESSFULLY! Model is production-ready.")
