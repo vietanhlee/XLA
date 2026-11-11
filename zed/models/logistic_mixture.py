@@ -138,12 +138,11 @@ class DiscretizedLogisticMixture(nn.Module):
         # Result shape: (B, H, W)
         log_px = torch.logsumexp(log_w + log_p_k_rgb, dim=1)
         
-        # Convert NLL to nats or bits (nats / ln(2) = bits)
+        # Convert NLL to bits (nats / ln(2) = bits)
         # NLL per pixel (sum over channels C, expressed in bits)
-        nll_map = -log_px / math.log(2.0)
+        nll_map = (-log_px / math.log(2.0)).float()
 
-        # 2. Compute Expected Entropy H(x) = - sum_{v=0}^{255} P(v) * log2 P(v)
-        # To compute H efficiently, we evaluate P(v) for all 256 pixel levels
+        # 2. Compute Expected Entropy H(x) over all 256 discrete levels per color channel
         entropy_map = self._compute_entropy_exact(logit_weights, means, log_scales, B, C, H, W)
 
         return nll_map, entropy_map
@@ -159,55 +158,66 @@ class DiscretizedLogisticMixture(nn.Module):
         W: int
     ) -> torch.Tensor:
         """
-        Evaluates exact expected entropy H over all discrete pixel intensities v in [0..255].
-        Returns entropy_map of shape (B, H, W).
+        Evaluates exact marginal expected entropy H = sum_c H(P_c) over all discrete 8-bit
+        intensities v in [0..255] using vectorized 255-boundary CDF evaluation and pixel chunking.
+
+        Exploits linearity of expectation over mixture weights:
+            P_c(v) = sum_k w_k * [CDF_{k,c}(v + 0.5) - CDF_{k,c}(v - 0.5)]
+                   = CDF_mix(v + 0.5) - CDF_mix(v - 0.5)
+        This eliminates 64 sequential intensity loops, repeat_interleave copies, and redundant
+        log/exp/logsumexp conversions while fixing channel-diagonal evaluation and preserving
+        100% compatibility with existing trained checkpoints (no extra parameters or buffers).
+
+        Returns:
+            entropy_map: Tensor of shape (B, H, W) in float32 bits per pixel.
         """
         device = logit_weights.device
         K = self.num_mixtures
-        log_w = F.log_softmax(logit_weights, dim=1) # (B, K, H, W)
 
-        # Create all 256 intensity levels tensor v: shape (256,)
-        v = torch.arange(0, 256, device=device, dtype=logit_weights.dtype)
-        
-        # We process intensity levels in smaller chunks (4) to prevent CUDA OutOfMemory
-        chunk_size = 4
-        total_entropy = torch.zeros((B, H, W), device=device, dtype=logit_weights.dtype)
+        # Evaluate in float32 for numerical stability even when CNN runs under AMP autocast
+        w = F.softmax(logit_weights.float(), dim=1)       # (B, K, H, W)
+        means_f = means.float()                           # (B, K, C, H, W)
+        inv_scales = torch.exp(-log_scales.float())       # (B, K, C, H, W)
 
-        for start_idx in range(0, 256, chunk_size):
-            end_idx = min(start_idx + chunk_size, 256)
-            v_chunk = v[start_idx:end_idx] # (V_chunk,)
+        num_pixels = B * H * W
+        w_flat = w.permute(0, 2, 3, 1).reshape(num_pixels, K)
+        means_flat = means_f.permute(0, 3, 4, 1, 2).reshape(num_pixels, K, C)
+        inv_flat = inv_scales.permute(0, 3, 4, 1, 2).reshape(num_pixels, K, C)
 
-            V_c = v_chunk.shape[0]
-            
-            # Broadcast over (B, V_chunk, C, H, W)
-            v_img = v_chunk.view(1, V_c, 1, 1, 1).expand(B, V_c, C, H, W)
-            v_flat = v_img.reshape(B * V_c, C, H, W)
-            
-            # Expand means & log_scales: (B * V_chunk, K, C, H, W)
-            means_exp = means.repeat_interleave(V_c, dim=0)
-            log_scales_exp = log_scales.repeat_interleave(V_c, dim=0)
-            
-            log_p_k_chunk = self.log_prob_per_component(v_flat, means_exp, log_scales_exp)
-            log_p_k_chunk = log_p_k_chunk.view(B, V_c, K, C, H, W)
-            
-            # Sum over channels C: (B, V_chunk, K, H, W)
-            log_p_k_rgb_chunk = log_p_k_chunk.sum(dim=3)
-            
-            # Expand log_w: (B, 1, K, H, W)
-            log_w_exp = log_w.unsqueeze(1)
-            
-            # log P(v) for each v in chunk: (B, V_chunk, H, W)
-            log_pv_chunk = torch.logsumexp(log_w_exp + log_p_k_rgb_chunk, dim=2)
-            
-            # Convert to bits
-            log2_pv_chunk = log_pv_chunk / math.log(2.0)
-            pv_chunk = torch.exp(log_pv_chunk)
-            
-            # Contribution: - P(v) * log2 P(v)
-            chunk_entropy = - (pv_chunk * log2_pv_chunk).sum(dim=1) # (B, H, W)
-            total_entropy += chunk_entropy
+        # 255 bin boundary edges: 0.5, 1.5, ..., 254.5 (created on-the-fly to keep state_dict unchanged)
+        edges = torch.arange(0.5, 255.0, 1.0, device=device, dtype=torch.float32)
 
-            # Delete large intermediate tensors to free GPU memory immediately
-            del v_flat, means_exp, log_scales_exp, log_p_k_chunk, log_p_k_rgb_chunk, log_pv_chunk, pv_chunk, log2_pv_chunk
+        # Adaptive spatial pixel chunk size keeps peak VRAM bounded (~250-750MB regardless of batch size)
+        chunk_pixels = max(1024, (8192 * 30) // max(1, K * C))
+        total_entropy = torch.empty(num_pixels, device=device, dtype=torch.float32)
+        inv_ln2 = 1.0 / math.log(2.0)
 
-        return total_entropy
+        for start_idx in range(0, num_pixels, chunk_pixels):
+            end_idx = min(start_idx + chunk_pixels, num_pixels)
+            n_c = end_idx - start_idx
+
+            m_c = means_flat[start_idx:end_idx].unsqueeze(-1)  # (n_c, K, C, 1)
+            s_c = inv_flat[start_idx:end_idx].unsqueeze(-1)    # (n_c, K, C, 1)
+            w_c = w_flat[start_idx:end_idx]                    # (n_c, K)
+
+            # Evaluate logistic CDF at all 255 bin edges simultaneously
+            cdf = torch.sigmoid(s_c * (edges - m_c))           # (n_c, K, C, 255)
+
+            # Mix component CDFs via batched matrix multiply: (n_c, 1, K) @ (n_c, K, C*255)
+            cdf_mix = torch.bmm(
+                w_c.unsqueeze(1), cdf.reshape(n_c, K, C * 255)
+            ).reshape(n_c, C, 255)
+
+            # Recover exact discrete probabilities over [0..255] per channel
+            p_cv = torch.empty((n_c, C, 256), device=device, dtype=torch.float32)
+            p_cv[..., 0] = cdf_mix[..., 0]
+            p_cv[..., 1:255] = cdf_mix[..., 1:] - cdf_mix[..., :-1]
+            p_cv[..., 255] = 1.0 - cdf_mix[..., -1]
+
+            # Clamp tiny FP32 rounding negatives to 0 so torch.special.entr never yields NaN
+            p_cv.clamp_(min=0.0, max=1.0)
+
+            # entr(p) = -p * ln(p) with entr(0) = 0; divide by ln(2) for bits per pixel
+            total_entropy[start_idx:end_idx] = torch.special.entr(p_cv).sum(dim=(-1, -2)) * inv_ln2
+
+        return total_entropy.reshape(B, H, W)

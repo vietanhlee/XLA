@@ -45,10 +45,20 @@ def evaluate_modern_zero_shot(
     all_delta01 = []
 
     print("Evaluating test images with Modern ZED (computing exact NLL, Entropy, and Patch Anomaly)...")
+    use_amp = (device.type == "cuda")
     with torch.no_grad():
         for images, labels, paths in tqdm(dataloader, desc="Detecting Modern"):
-            images = images.to(device)
-            output_dict = model(images, compute_entropy=True)
+            images = images.to(device, non_blocking=True)
+
+            # Use mixed precision for ConvNeXt backbone forward; logistic mixture internally casts to float32
+            if use_amp and hasattr(torch.amp, "autocast"):
+                with torch.amp.autocast(device_type=device.type):
+                    output_dict = model(images, compute_entropy=True)
+            elif use_amp:
+                with torch.cuda.amp.autocast():
+                    output_dict = model(images, compute_entropy=True)
+            else:
+                output_dict = model(images, compute_entropy=True)
 
             d0 = output_dict["d0"].cpu().numpy()
             abs_d0 = output_dict["abs_d0"].cpu().numpy()
@@ -78,7 +88,8 @@ def main():
     parser.add_argument("--checkpoint", type=str, default="checkpoints/zed_modern_best.pth", help="Path to Modern ZED checkpoint.")
     parser.add_argument("--real_dir", type=str, default="data/test/real", help="Directory containing test REAL images.")
     parser.add_argument("--fake_dir", type=str, default="data/test/fake", help="Directory containing test FAKE / AI images.")
-    parser.add_argument("--batch_size", type=int, default=4, help="Batch size for inference.")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for inference (default: 16).")
+    parser.add_argument("--num_workers", type=int, default=min(4, max(1, os.cpu_count() or 2)), help="DataLoader worker threads.")
     parser.add_argument("--limit", type=int, default=None, help="Giới hạn số lượng ảnh AI / Fake được nạp từ folder AI detect (ví dụ: --limit 500 hoặc 1000).")
     parser.add_argument("--limit_fake", type=int, default=None, help="Alias cho --limit: giới hạn số lượng ảnh AI.")
     parser.add_argument("--limit_real", type=int, default=None, help="Giới hạn số lượng ảnh Real được nạp từ real_dir (tùy chọn).")
@@ -94,13 +105,10 @@ def main():
     device = get_safe_device(args.device)
     print("=== Modern ZED Zero-Shot Detection Evaluation ===")
     print("Architecture: ConvNeXt-SReC (7x7 Depthwise Conv + ECA)")
-    print(f"Device: {device}")
+    print(f"Device: {device} | Batch Size: {args.batch_size}")
     print(f"Real Dir: {args.real_dir}")
     print(f"Fake Dir: {args.fake_dir}")
-    if fake_limit is not None or real_limit is not None:
-        print(f"Limit Settings -> AI/Fake limit: {fake_limit} | Real limit: {real_limit}")
-    elif args.max_samples:
-        print(f"Fast Evaluation Mode: Max {args.max_samples} images per class.")
+    print(f"Limit Settings -> AI/Fake limit: {fake_limit if fake_limit is not None else 'Unlimited'} | Real limit: {real_limit if real_limit is not None else 'Unlimited'}")
 
     model_cfg = ModelConfig()
     model = ModernZEDModel(
@@ -131,11 +139,17 @@ def main():
         print(f"ERROR: No evaluation images found in '{args.real_dir}' or '{args.fake_dir}'.")
         return
 
+    if real_limit is None and dataset.num_fake > 0 and dataset.num_real > 2 * dataset.num_fake:
+        print(f"💡 Tip: Tập Real đang nạp toàn bộ {dataset.num_real} ảnh (gấp >2x số ảnh AI {dataset.num_fake}). Bạn có thể truyền thêm --limit_real {dataset.num_fake} để cân bằng và chạy nhanh hơn.")
+
+    workers = min(args.num_workers, max(1, os.cpu_count() or 2)) if device.type == "cuda" else 0
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
         shuffle=False,
-        num_workers=2 if device.type == "cuda" else 0
+        num_workers=workers,
+        pin_memory=(device.type == "cuda"),
+        persistent_workers=(workers > 0)
     )
 
     labels, d0_scores, abs_d0_scores, d0_top10_scores, d0_std_scores, delta01_scores = evaluate_modern_zero_shot(model, dataloader, device)

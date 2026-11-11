@@ -57,7 +57,8 @@ class RealImageDataset(Dataset):
 
     def __getitem__(self, idx: int) -> torch.Tensor:
         path = self.image_paths[idx]
-        image = Image.open(path).convert("RGB")
+        with Image.open(path) as img:
+            image = img.convert("RGB")
         tensor_img = self.transform(image)
         # Convert to range [0, 255] if still in [0.0, 1.0], avoiding accidental double scaling
         if tensor_img.max() <= 1.0 + 1e-5:
@@ -174,8 +175,10 @@ class EvaluationImageDataset(Dataset):
                     if effective_fake_limit and len(fake_items) >= effective_fake_limit:
                         break
 
+        self.num_real = len(real_items)
+        self.num_fake = len(fake_items)
         self.items = real_items + fake_items
-        print(f"📊 Evaluation Dataset Loaded: {len(real_items)} Real images, {len(fake_items)} Fake images (Total: {len(self.items)}).")
+        print(f"📊 Evaluation Dataset Loaded: {self.num_real} Real images, {self.num_fake} Fake images (Total: {len(self.items)}).")
 
         if transform is not None:
             self.transform = transform
@@ -189,7 +192,8 @@ class EvaluationImageDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
         path, label = self.items[idx]
-        image = Image.open(path).convert("RGB")
+        with Image.open(path) as img:
+            image = img.convert("RGB")
         tensor_img = self.transform(image)
         # Ensure tensor is scaled to [0, 255]
         if tensor_img.max() <= 1.0 + 1e-5:
