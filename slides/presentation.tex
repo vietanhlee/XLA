@@ -241,9 +241,9 @@
       \vspace{0.05em}
       \begin{accentbox}[equal height group=toc2, top=0.7mm, bottom=0.7mm]{MidnightNavy}{04. Thực nghiệm độc lập \& Đánh giá 70/30}
         \raggedright\scriptsize
-        \textbf{6.1 Huấn luyện:} 32 epochs (~29h GPU), loss giảm 58.27 $\to$ 29.20.\\
+        \textbf{6.1 Huấn luyện:} 32 epochs, loss giảm sâu từ 58.27 $\to$ 29.20.\\
         \vspace{0.04em}
-        \textbf{6.2 Kiểm định 179,042 ảnh:} Phân tầng 70\% Calib $\to$ 30\% Test ngoài mẫu; $|D^{(0)}|$ đạt 68.76\% AUC, 64.01\% Balanced Acc.
+        \textbf{6.2 Data Split (70/30):} Phân chia tập Calibration (70\%) và Test (30\%); $|D^{(0)}|$ đạt 68.76\% AUC, 64.01\% Balanced Acc.
       \end{accentbox}
     \end{column}
   \end{columns}
@@ -694,21 +694,23 @@
   \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
   \begin{columns}[c, totalwidth=\linewidth]
     \begin{column}{0.42\linewidth}
-      \begin{cleanbox}[equal height group=trainbox, top=0.6mm, bottom=0.6mm]{Cấu hình huấn luyện thực tế}
+      \begin{cleanbox}[equal height group=trainbox, top=0.5mm, bottom=0.5mm]{Cấu hình huấn luyện thực tế}
         \raggedright\scriptsize
         $\bullet$ \textbf{Số epoch:} 32 epochs hoàn thành trọn vẹn.\\
-        \vspace{0.06em}
-        $\bullet$ \textbf{Thời gian huấn luyện:} $\approx$28.8 giờ GPU ($\sim$53--55 phút/epoch).\\
-        \vspace{0.06em}
-        $\bullet$ \textbf{Kiến trúc:} SReC-CNN (3 levels, $K=10$).
+        \vspace{0.05em}
+        $\bullet$ \textbf{Kiến trúc mạng:} SReC-CNN 3 cấp độ subpixel ($L=3$).\\
+        \vspace{0.05em}
+        $\bullet$ \textbf{Mô hình xác suất:} Discretized Logistic Mixture ($K=10$).\\
+        \vspace{0.05em}
+        $\bullet$ \textbf{Hàm mất mát:} Negative Log-Likelihood (NLL).
       \end{cleanbox}
-      \vspace{0.10em}
-      \begin{accentbox}[equal height group=trainbox, top=0.6mm, bottom=0.6mm]{ElectricBlue}{Động thái hội tụ mất mát (Loss)}
+      \vspace{0.06em}
+      \begin{accentbox}[equal height group=trainbox, top=0.5mm, bottom=0.5mm]{ElectricBlue}{Động thái hội tụ mất mát (Loss)}
         \raggedright\tiny
         $\bullet$ \textbf{Train Loss:} Giảm sâu từ \textbf{58.27} $\to$ \textbf{29.20}.\\
-        \vspace{0.06em}
+        \vspace{0.05em}
         $\bullet$ \textbf{Validation Loss:} Giảm từ \textbf{43.00} $\to$ \textbf{29.21} (epoch 30), hội tụ vững chắc không bị overfit.\\
-        \vspace{0.06em}
+        \vspace{0.05em}
         $\bullet$ \textbf{Hội tụ 3 cấp độ phân giải subpixel:}\\
         -- Level 0 ($H \times W$): $18.56 \to 8.41$\\
         -- Level 1 ($H/2 \times W/2$): $19.51 \to 9.82$\\
@@ -723,29 +725,32 @@
   \end{columns}
 \end{frame}
 
-% ==================== SLIDE 16: 6.2 CẤU HÌNH KIỂM ĐỊNH VÀ PHÂN TẦNG 70/30 ====================
-\begin{frame}{6.2 Cấu hình kiểm định diện rộng \& Phân tầng 70/30}
+% ==================== SLIDE 16: 6.2 DỮ LIỆU THỰC NGHIỆM VÀ PHÂN CHIA DATA SPLIT ====================
+\begin{frame}{6.2 Dữ liệu thực nghiệm \& Phân chia tập dữ liệu (Data Split)}
   \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
   \begin{columns}[c, totalwidth=\linewidth]
     \begin{column}{0.44\linewidth}
-      \begin{cleanbox}[top=0.4mm, bottom=0.4mm]{Tập dữ liệu kiểm định diện rộng}
+      \begin{cleanbox}[top=0.4mm, bottom=0.4mm]{Dữ liệu thực nghiệm (Gộp 4 nguồn)}
         \raggedright\scriptsize
-        \textbf{Tổng số lượng ảnh:} \textbf{179,042 ảnh}.\\
+        $\bullet$ \textbf{Các tập dữ liệu gộp:}\\
+        {\tiny\texttt{celeba\_0000\_2}, \texttt{coco\_0000}, \texttt{coco\_0001}, \texttt{openimages\_0003\_2}}\\
         \vspace{0.04em}
-        \textbf{Ảnh thật tự nhiên:} \textbf{168,712 ảnh} (94.2\%).\\
+        $\bullet$ \textbf{Quy mô:} \textbf{179,042 ảnh} tổng cộng.\\
         \vspace{0.04em}
-        \textbf{Ảnh do AI sinh:} \textbf{10,330 ảnh} (5.8\%).\\
+        $\bullet$ \textbf{Phân bổ nhãn:}\\
+        -- Thật: \textbf{168,712 ảnh} (94.2\%)\\
+        -- AI sinh: \textbf{10,330 ảnh} (5.8\%)\\
         \vspace{0.04em}
-        \textbf{Mất cân bằng lớn:} Tỷ lệ $\sim$16:1 mô phỏng thực tế.
+        $\blacktriangleright$ Tỷ lệ mất cân bằng $\sim$16:1, kết hợp đa miền chân dung và vật thể tự nhiên.
       \end{cleanbox}
       \vspace{0.06em}
-      \begin{accentbox}[top=0.4mm, bottom=0.4mm]{TealAccent}{Phân tầng khoa học (Stratified Split)}
+      \begin{accentbox}[top=0.4mm, bottom=0.4mm]{TealAccent}{Phân chia tập dữ liệu (Data Split 70/30)}
         \raggedright\tiny
-        $\bullet$ \textbf{Tập Calibration (70\%):} 125,330 ảnh (118,099 thật + 7,231 AI) dùng tối ưu ngưỡng quyết định $\tau^*$.\\
+        $\bullet$ \textbf{Tập Calibration (70\%):} 125,330 ảnh (118,099 thật + 7,231 AI) dùng dò tìm ngưỡng tối ưu $\tau^*$.\\
         \vspace{0.04em}
-        $\bullet$ \textbf{Tập Test ngoài mẫu (30\%):} 53,712 ảnh (50,613 thật + 3,099 AI) kiểm định độc lập với $\tau^*$ cố định.\\
+        $\bullet$ \textbf{Tập Test độc lập (30\%):} 53,712 ảnh (50,613 thật + 3,099 AI) kiểm định với $\tau^*$ cố định.\\
         \vspace{0.04em}
-        $\bullet$ \textbf{Phần cứng:} 2x Tesla T4 (DataParallel Kaggle).
+        $\bullet$ \textbf{Nguyên tắc:} Phân tầng ngẫu nhiên (Stratified Split) bảo toàn nguyên vẹn tỷ lệ phân bố nhãn.
       \end{accentbox}
     \end{column}
     \begin{column}{0.54\linewidth}
@@ -757,54 +762,70 @@
 \end{frame}
 
 % ==================== SLIDE 17: 6.3 ĐÁNH GIÁ PHÂN TÁCH TRÊN TẬP TEST ====================
-\begin{frame}{6.3 Đánh giá phân tách: So sánh hiệu năng trên tập Test (30\%)}
+\begin{frame}{6.3 Đánh giá phân tách: Kết quả kiểm thử trên tập Test (30\%)}
   \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
-  \begin{columns}[c, onlytextwidth]
-    \begin{column}{0.44\textwidth}
-      % 2 ô KPI Stat Card
-      \noindent\begin{minipage}[t]{0.48\linewidth}
-        \begin{statbox}{ElectricBlue}{KPI 1}
-          {\fontsize{13}{15}\selectfont\textbf{\textcolor{ElectricBlue}{68.76\%}}}\\[0.05em]
-          {\tiny\textbf{\textcolor{MidnightNavy}{ROC-AUC $|D^{(0)}|$}}}
-        \end{statbox}
-      \end{minipage}\hfill
-      \begin{minipage}[t]{0.48\linewidth}
-        \begin{statbox}{EmeraldGreen}{KPI 2}
-          {\fontsize{13}{15}\selectfont\textbf{\textcolor{EmeraldGreen}{64.01\%}}}\\[0.05em]
-          {\tiny\textbf{\textcolor{MidnightNavy}{Balanced Acc}}}
-        \end{statbox}
-      \end{minipage}
-      \vspace{0.15em}
-      \begin{cleanbox}[top=0.8mm,bottom=0.8mm]{Bảng chỉ số kiểm định trên tập Test (30\%)}
-        \centering\scriptsize
-        \setlength{\tabcolsep}{1.6pt}
-        \begin{tabular}{lcccc}
+  
+  % 3 thẻ KPI Stat Card trải rộng ngang màn hình
+  \begin{columns}[T, totalwidth=\linewidth]
+    \begin{column}{0.31\linewidth}
+      \begin{statbox}{ElectricBlue}{KPI 1: NĂNG LỰC PHÂN TÁCH}
+        {\fontsize{13}{15}\selectfont\textbf{\textcolor{ElectricBlue}{68.76\%}}}\\[0.05em]
+        {\tiny\textbf{\textcolor{MidnightNavy}{ROC-AUC $|D^{(0)}|$ trên tập Test}}}
+      \end{statbox}
+    \end{column}
+    \begin{column}{0.31\linewidth}
+      \begin{statbox}{EmeraldGreen}{KPI 2: TỔNG QUÁT HÓA}
+        {\fontsize{13}{15}\selectfont\textbf{\textcolor{EmeraldGreen}{64.01\%}}}\\[0.05em]
+        {\tiny\textbf{\textcolor{MidnightNavy}{Balanced Acc (Calib: 63.78\%)}}}
+      \end{statbox}
+    \end{column}
+    \begin{column}{0.31\linewidth}
+      \begin{statbox}{DeepPurple}{KPI 3: ĐỘ NHẠY BẮT ẢNH AI}
+        {\fontsize{13}{15}\selectfont\textbf{\textcolor{DeepPurple}{69.25\%}}}\\[0.05em]
+        {\tiny\textbf{\textcolor{MidnightNavy}{Recall (2,146 / 3,099 ảnh AI)}}}
+      \end{statbox}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.10em}
+
+  % Phần thân: Bảng số liệu chi tiết bên trái + Khối nhận xét khoa học bên phải
+  \begin{columns}[T, totalwidth=\linewidth]
+    \begin{column}{0.50\linewidth}
+      \begin{cleanbox}[top=0.6mm, bottom=0.6mm]{Bảng chỉ số kiểm định trên tập Test độc lập (30\%)}
+        \centering\tiny
+        \setlength{\tabcolsep}{1.2pt}
+        \begin{tabular}{lccccc}
           \toprule
-          \textbf{Chỉ số} & \textbf{ROC-AUC} & \textbf{Bal. Acc} & \textbf{Recall} & \textbf{Ngưỡng $\tau^*$} \\
+          \textbf{Chỉ số} & \textbf{ROC-AUC} & \textbf{Bal.Acc} & \textbf{Recall} & \textbf{FPR} & \textbf{Ngưỡng $\tau^*$} \\
           \midrule
-          $D^{(0)}$        & 31.23\% & 50.01\% & 0.06\% & 3.707 \\
-          \textbf{$|D^{(0)}|$} & \textbf{68.76\%} & \textbf{64.01\%} & \textbf{69.25\%} & \textbf{2.381} \\
-          \textbf{$|\Delta^{01}|$} & \textbf{59.31\%} & \textbf{57.53\%} & \textbf{51.98\%} & \textbf{0.764} \\
+          $D^{(0)}$        & 31.23\% & 50.01\% & 0.06\%  & 0.04\%  & 3.707 \\
+          \textbf{$|D^{(0)}|$} & \textbf{68.76\%} & \textbf{64.01\%} & \textbf{69.25\%} & \textbf{41.23\%} & \textbf{2.381} \\
+          \textbf{$|\Delta^{01}|$} & \textbf{59.31\%} & \textbf{57.53\%} & \textbf{51.98\%} & \textbf{36.93\%} & \textbf{0.764} \\
           \bottomrule
         \end{tabular}
-      \end{cleanbox}
-      \vspace{0.15em}
-      \begin{notebox}[top=0.8mm,bottom=0.8mm]
+
+        \vspace{0.25em}
         \raggedright\tiny
-        \textbf{Tính bền vững ngoài mẫu:}\\
-        $|D^{(0)}|$ đạt Balanced Acc \textbf{64.01\%} trên tập Test độc lập (không suy giảm so với 63.78\% ở tập Calib), khẳng định tính tổng quát hóa không bị overfit.
-      \end{notebox}
+        \textbf{\textcolor{SlateSub}{Ma trận nhầm lẫn $|D^{(0)}|$ tại ngưỡng $\tau^*=2.381$:}}\\
+        \textcolor{MidnightNavy}{$\text{TP}=2,146$ (Bắt AI), $\text{FN}=953$, $\text{TN}=29,747$ (Thật), $\text{FP}=20,866$.}
+      \end{cleanbox}
     \end{column}
-    \begin{column}{0.54\textwidth}
-      \centering
-      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{figures/pr_curves_comparison.pdf}\\[0.15em]
-      \tiny\textcolor{SlateSub}{Đường cong PR: Khảo sát kịch bản mất cân bằng nghiêm trọng (16:1)}
+    \begin{column}{0.46\linewidth}
+      \begin{accentbox}[top=0.6mm, bottom=0.6mm]{ElectricBlue}{Phân tích hiệu năng định lượng}
+        \raggedright\tiny
+        $\bullet$ \textbf{Vai trò của trị tuyệt đối:} Chỉ số $D^{(0)}$ đơn thuần chỉ đạt 31.23\% AUC do ảnh AI có chi phí phân tán hai chiều. Lấy trị tuyệt đối $|D^{(0)}|$ giúp tăng vọt AUC lên \textbf{68.76\%}.\\
+        \vspace{0.06em}
+        $\bullet$ \textbf{Độ ổn định ngoài mẫu:} Balanced Accuracy trên tập Test (64.01\%) tương đương tập Calibration (63.78\%), chứng minh ngưỡng $\tau^*$ duy trì khả năng khái quát hóa.\\
+        \vspace{0.06em}
+        $\bullet$ \textbf{Chỉ số vi phân $|\Delta^{01}|$:} Đạt AUC 59.31\%, phản ánh sự mất cân đối mã hóa giữa cấp vi mô $l=0$ và cấp ngữ cảnh $l=1$.
+      \end{accentbox}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ==================== SLIDE 18: 6.4 PHÂN TÍCH CHỈ SỐ ĐỘT PHÁ |D^(0)| ====================
-\begin{frame}{6.4 Phân tích chi tiết chỉ số đột phá $|D^{(0)}|$ trên tập Test}
+% ==================== SLIDE 18: 6.4 PHÂN TÍCH CHỈ SỐ |D^(0)| ====================
+\begin{frame}{6.4 Phân tích chi tiết chỉ số $|D^{(0)}|$ trên tập Test}
   \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
   \begin{columns}[T, totalwidth=\linewidth]
     \begin{column}{0.31\linewidth}
@@ -815,7 +836,8 @@
       \vspace{0.15em}
       \begin{notebox}[equal height group=s18box, top=0.8mm, bottom=0.8mm]
         \raggedright\tiny
-        \textbf{Phân bố tách bạch:} Lấy trị tuyệt đối đưa phân phối ảnh AI dịch sang phải (mean cao hơn ảnh thật), tạo khoảng phân cách rõ rệt.
+        \textbf{Độ chồng lấn phân phối:}\\
+        Phân phối $|D^{(0)}|$ của ảnh AI có xu hướng dịch nhẹ sang phải, tuy nhiên giữa ảnh thật và ảnh AI vẫn tồn tại vùng chồng lấn (overlap) rất lớn, chưa thể tách bạch hoàn toàn.
       \end{notebox}
     \end{column}
     \begin{column}{0.31\linewidth}
@@ -826,24 +848,25 @@
       \vspace{0.15em}
       \begin{notebox}[equal height group=s18box, top=0.8mm, bottom=0.8mm]
         \raggedright\tiny
-        \textbf{Độ nhạy thực tế:} Phát hiện đúng \textbf{2,146 / 3,099 ảnh AI} (Recall 69.25\%) và nhận diện đúng 29,747 ảnh thật trên tập kiểm định ngoài mẫu.
+        \textbf{Phân loại tại $\tau^* = 2.381$:}\\
+        Nhận diện đúng \textbf{2,146 / 3,099 ảnh AI} (Recall 69.25\%), nhưng có tới \textbf{20,866 ảnh thật} bị dự đoán nhầm là AI (FPR 41.23\%) do vùng phân phối bị giao thoa.
       \end{notebox}
     \end{column}
     \begin{column}{0.35\linewidth}
       \vspace{0.05cm}
-      \begin{accentbox}[top=1.5mm, bottom=1.5mm]{EmeraldGreen}{Ý nghĩa phương pháp \& Đột phá}
+      \begin{cleanbox}[top=1.0mm, bottom=1.0mm]{Đánh giá khách quan \& Thách thức}
         \raggedright\tiny
-        \textbf{1. Cơ chế đối xứng 2 phía:}\\
-        Khắc phục triệt để hiện tượng ảnh AI bị nén quá mức ($D^{(0)} < 0$), nâng ROC-AUC từ 31.23\% lên 68.76\%.
-        \vspace{0.20em}
+        \textbf{1. Thách thức phân tách:}\\
+        Trái với kết quả phân tách gần như lý tưởng trên benchmark hẹp của paper gốc, trên tập dữ liệu gộp đa dạng, khoảng cách chi phí nén giữa ảnh thật và AI không tách biệt rõ ràng.
+        \vspace{0.18em}
 
-        \textbf{2. Khả năng phát hiện zero-shot:}\\
-        Đạt độ nhạy gần 70\% trên ảnh AI hoàn toàn không cần học mẫu fake nào trong quá trình huấn luyện.
-        \vspace{0.20em}
+        \textbf{2. Nguyên nhân chồng lấn:}\\
+        Sự kết hợp đa miền (CelebA, COCO, OpenImages) khiến độ phân tán entropy tự nhiên của ảnh thật rất lớn; đồng thời các bộ sinh AI hiện đại đã mô phỏng cấu trúc cục bộ tinh vi hơn.
+        \vspace{0.18em}
 
-        \textbf{3. Minh chứng thực nghiệm cho paper gốc:}\\
-        Kết quả kiểm định diện rộng 179k ảnh hoàn toàn nhất quán với các kết luận lý thuyết của Cozzolino et al.
-      \end{accentbox}
+        \textbf{3. Đánh đổi giữa Recall và FPR:}\\
+        Ngưỡng $\tau^*$ tối ưu theo Youden's Index ưu tiên giữ Recall $\sim 69\%$, chấp nhận tỷ lệ báo động giả (FPR $\approx 41\%$) để hạn chế bỏ lọt ảnh nhân tạo.
+      \end{cleanbox}
     \end{column}
   \end{columns}
 \end{frame}
@@ -853,34 +876,34 @@
   \framesubtitle{TỔNG KẾT BÁO CÁO \;\textbar\; CONCLUSION}
   \begin{columns}[t]
     \begin{column}{0.50\textwidth}
-      \begin{accentbox}[equal height group=conc]{ElectricBlue}{Đóng góp về phương pháp \& lý thuyết}
+      \begin{accentbox}[equal height group=conc]{ElectricBlue}{Tổng kết kết quả thực nghiệm}
         \raggedright\scriptsize
-        \textbf{1. Cầu nối nén lossless \& thị giác máy tính:}\\
-        Vận dụng lý thuyết thông tin Shannon để chuyển hóa bài toán phát hiện ảnh AI thành bài toán đo độ lệch chi phí nén.
-        \vspace{0.25em}
+        \textbf{1. Kiểm chứng khung tiếp cận One-Class:}\\
+        Huấn luyện thành công mạng SReC-CNN hoàn toàn trên ảnh thật tự nhiên (32 epochs, loss giảm từ 58.27 $\to$ 29.20), không phụ thuộc dữ liệu ảnh AI.
+        \vspace{0.22em}
 
-        \textbf{2. Khung tiếp cận one-class thuần túy:}\\
-        Chỉ học phân phối chuẩn của ảnh tự nhiên, triệt tiêu phụ thuộc vào dữ liệu giả hay kiến trúc bộ sinh cụ thể.
-        \vspace{0.25em}
+        \textbf{2. Hiệu năng trên tập kiểm thử ngoài mẫu:}\\
+        Chỉ số $|D^{(0)}|$ đạt ROC-AUC 68.76\%, Balanced Acc 64.01\%, Recall 69.25\% trên tập Test (30\%); duy trì độ ổn định so với tập Calibration.
+        \vspace{0.22em}
 
-        \textbf{3. Thống kê Coding Cost Gap:}\\
-        Đề xuất $|D^{(0)}|$ và $|\Delta^{01}|$ mang ý nghĩa vật lý rõ ràng, phân tách mạnh mẽ giữa ảnh thật và ảnh máy sinh.
+        \textbf{3. Vai trò của phép lấy trị tuyệt đối:}\\
+        Khắc phục tính hai chiều của sai số nén, cải thiện rõ rệt so với chỉ số đơn biến $D^{(0)}$ (AUC nâng từ 31.23\% lên 68.76\%).
       \end{accentbox}
     \end{column}
     \begin{column}{0.50\textwidth}
-      \begin{accentbox}[equal height group=conc]{TealAccent}{Ý nghĩa thực tiễn \& kết quả thực nghiệm}
+      \begin{cleanbox}[equal height group=conc]{Hạn chế tồn tại \& Hướng phát triển}
         \raggedright\scriptsize
-        \textbf{1. Năng lực zero-shot vượt bậc:}\\
-        Cả paper gốc và thực nghiệm độc lập đều chứng minh ZED duy trì hiệu năng cao trên các mô hình sinh mới lạ.
-        \vspace{0.25em}
+        \textbf{1. Thách thức vùng chồng lấn phân phối:}\\
+        Trên dữ liệu đa miền, phân phối điểm số của ảnh thật và AI còn chồng lấn lớn; tỷ lệ báo động sai (FPR) còn tương đối cao ($\sim$41.2\%).
+        \vspace{0.22em}
 
-        \textbf{2. Kiểm chứng quy mô lớn (179,042 ảnh):}\\
-        Đánh giá phân tầng khoa học 70\% Calib / 30\% Test khẳng định tính ổn định ngoài mẫu (Balanced Acc 64.01\%, Recall 69.25\%).
-        \vspace{0.25em}
+        \textbf{2. Tính nhạy cảm với miền dữ liệu:}\\
+        Đặc trưng entropy tự nhiên khác biệt rõ rệt giữa các miền ảnh (ảnh chân dung CelebA vs cảnh vật phức tạp COCO/OpenImages); một ngưỡng toàn cục duy nhất chưa tối ưu cho mọi bối cảnh.
+        \vspace{0.22em}
 
-        \textbf{3. Khả thi trong triển khai thực tế:}\\
-        Hệ thống không cần liên tục fine-tune khi xuất hiện các bộ sinh AI mới, mở ra giải pháp bền vững cho an toàn thông tin thị giác.
-      \end{accentbox}
+        \textbf{3. Hướng nghiên cứu tiếp theo:}\\
+        Khám phá cơ chế chuẩn hóa entropy theo miền ngữ cảnh, kết hợp phân tích cục bộ (patch-level) hoặc mô hình hóa đa biến để tăng cường khả năng phân tách.
+      \end{cleanbox}
     \end{column}
   \end{columns}
 \end{frame}
