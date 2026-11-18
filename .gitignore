@@ -1,4 +1,18 @@
 .gemini
-__pycache__
-.venv
+__pycache__/
+*.pyc
+.venv/
 up.md
+scratch/
+paper_extracted_images/
+
+# LaTeX build intermediate artifacts
+slides/render_check/
+slides/*.aux
+slides/*.log
+slides/*.nav
+slides/*.out
+slides/*.snm
+slides/*.toc
+slides/*.vrb
+slides/*.bak

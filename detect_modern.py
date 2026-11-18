@@ -27,7 +27,14 @@ import json
 from config import ModelConfig
 from zed.models import ModernZEDModel
 from zed.dataset import EvaluationImageDataset
-from zed.utils import load_checkpoint, compute_metrics, plot_detection_dashboard, get_safe_device, wrap_model_multigpu
+from zed.utils import (
+    load_checkpoint,
+    compute_metrics,
+    plot_detection_dashboard,
+    get_safe_device,
+    wrap_model_multigpu,
+    export_all_detection_plots
+)
 
 
 def evaluate_modern_zero_shot(
@@ -179,6 +186,51 @@ def main():
     results_dir = Path("results")
     results_dir.mkdir(parents=True, exist_ok=True)
 
+    # 1. Save raw anomaly scores array (.npz) for fast downstream re-analysis and vector plotting
+    scores_npz_path = results_dir / "detection_scores_modern_zed.npz"
+    np.savez_compressed(
+        scores_npz_path,
+        labels=labels,
+        d0=d0_scores,
+        abs_d0=abs_d0_scores,
+        d0_top10=d0_top10_scores,
+        d0_std=d0_std_scores,
+        delta01=delta01_scores
+    )
+    print(f"💾 Saved raw Modern detection scores: {scores_npz_path}")
+
+    # 2. Save Metrics Summary JSON
+    summary_metrics = {
+        "d0": metrics_d0,
+        "d0_top10": metrics_d0_top10,
+        "d0_std": metrics_d0_std,
+        "abs_d0": metrics_abs_d0,
+        "delta01": metrics_delta01
+    }
+    metrics_json_path = results_dir / "detection_metrics_modern_zed.json"
+    with open(metrics_json_path, "w", encoding="utf-8") as f:
+        json.dump(summary_metrics, f, indent=2)
+    print(f"📄 Saved Modern metrics JSON: {metrics_json_path}")
+
+    # 3. Export standalone individual plots in PDF format (and PNG preview) for ALL surveyed metrics
+    plots_dir = results_dir / "plots" / "modern_zed"
+    scores_dict = {
+        "d0": d0_scores,
+        "abs_d0": abs_d0_scores,
+        "delta01": delta01_scores,
+        "d0_top10": d0_top10_scores,
+        "d0_std": d0_std_scores
+    }
+    export_all_detection_plots(
+        scores_dict=scores_dict,
+        labels=labels,
+        metrics_dict=summary_metrics,
+        output_dir=str(plots_dir),
+        model_name="Modern ZED",
+        formats=("pdf", "png")
+    )
+
+    # 4. Save legacy combined 4-panel dashboard for backward compatibility
     dashboard_path = str(results_dir / "detection_dashboard_modern_zed.png")
     plot_detection_dashboard(
         d0_scores=d0_scores,
@@ -190,20 +242,7 @@ def main():
         model_name="Modern ZED",
         d0_top10_scores=d0_top10_scores
     )
-
-    summary_metrics = {
-        "d0_mean": metrics_d0,
-        "d0_top10": metrics_d0_top10,
-        "d0_std": metrics_d0_std,
-        "abs_d0": metrics_abs_d0,
-        "delta01": metrics_delta01
-    }
-    metrics_json_path = results_dir / "detection_metrics_modern_zed.json"
-    with open(metrics_json_path, "w") as f:
-        json.dump(summary_metrics, f, indent=2)
-
-    print(f"📊 Saved 4-panel Modern Detection Dashboard plot: {dashboard_path}")
-    print(f"📄 Saved Modern metrics JSON: {metrics_json_path}")
+    print(f"📊 Saved legacy 4-panel Modern Detection Dashboard plot: {dashboard_path}")
 
 
 if __name__ == "__main__":

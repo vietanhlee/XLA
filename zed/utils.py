@@ -4,6 +4,7 @@ Paper: "Zero-Shot Detection of AI-Generated Images" (Cozzolino et al.)
 """
 
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from pathlib import Path
 from typing import Tuple, Dict, Any, List, Optional
 
@@ -269,6 +270,422 @@ def plot_training_curves(
     print(f"📊 High-resolution training curves dashboard saved to: {output_path}")
 
 
+def plot_score_density(
+    scores: np.ndarray,
+    labels: np.ndarray,
+    threshold: float,
+    metric_name: str,
+    output_dir: str,
+    file_prefix: str = "density",
+    title_suffix: str = "",
+    formats: Tuple[str, ...] = ("pdf", "png")
+) -> Dict[str, str]:
+    """
+    Plots and saves an individual publication-grade Score Density Histogram (Real vs AI)
+    with the optimal decision threshold line.
+
+    Args:
+        scores: 1D array of anomaly decision scores for test samples.
+        labels: Binary labels array (0 = Real, 1 = Fake/AI-generated).
+        threshold: Optimal decision threshold value (tau*).
+        metric_name: Math or readable name for display (e.g., "$D^{(0)}$", "$|D^{(0)}|$", "$|\\Delta^{01}|$").
+        output_dir: Directory where the output plots will be saved.
+        file_prefix: Prefix for the output filename (e.g. "density_d0").
+        title_suffix: Optional extra title text.
+        formats: Tuple of file formats to save (default: ("pdf", "png")).
+
+    Returns:
+        Dict mapping format name to output file path.
+    """
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    real_scores = scores[labels == 0]
+    fake_scores = scores[labels == 1]
+
+    plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.size': 11})
+    fig, ax = plt.subplots(figsize=(7.0, 5.2), dpi=300)
+
+    # Plot Real vs AI histograms
+    ax.hist(
+        real_scores, bins=40, alpha=0.65, color="#1f77b4",
+        label=f"Real Images (N = {len(real_scores):,})",
+        density=True, edgecolor="none"
+    )
+    ax.hist(
+        fake_scores, bins=40, alpha=0.65, color="#d62728",
+        label=f"AI/Fake Images (N = {len(fake_scores):,})",
+        density=True, edgecolor="none"
+    )
+
+    # Optimal threshold marker line
+    ax.axvline(
+        x=threshold, color="#2ca02c", linestyle="--", linewidth=2.4,
+        label=f"Optimal Threshold ($\\tau^* = {threshold:.4f}$)"
+    )
+
+    clean_title = f"Score Density Distribution: {metric_name}"
+    if title_suffix:
+        clean_title += f" ({title_suffix})"
+    ax.set_title(clean_title, fontsize=12, fontweight="bold", pad=12)
+    ax.set_xlabel(f"Decision Statistic {metric_name}", fontsize=11, labelpad=8)
+    ax.set_ylabel("Probability Density", fontsize=11, labelpad=8)
+    ax.grid(True, linestyle=":", alpha=0.6)
+    ax.legend(loc="upper right", frameon=True, facecolor="white", framealpha=0.95, edgecolor="#cccccc")
+
+    plt.tight_layout()
+    saved_paths = {}
+    for fmt in formats:
+        fmt_clean = fmt.lower().strip(".")
+        save_path = os.path.join(output_dir, f"{file_prefix}.{fmt_clean}")
+        fig.savefig(save_path, format=fmt_clean, bbox_inches="tight", dpi=300)
+        saved_paths[fmt_clean] = save_path
+
+    plt.close(fig)
+    print(f"📊 Saved individual Score Density plot: {saved_paths.get('pdf', list(saved_paths.values())[0])}")
+    return saved_paths
+
+
+def plot_confusion_matrix_individual(
+    scores: np.ndarray,
+    labels: np.ndarray,
+    threshold: float,
+    metric_name: str,
+    output_dir: str,
+    file_prefix: str = "confusion_matrix",
+    best_acc: Optional[float] = None,
+    formats: Tuple[str, ...] = ("pdf", "png")
+) -> Dict[str, str]:
+    """
+    Plots and saves an individual publication-grade Confusion Matrix Heatmap at the optimal threshold.
+
+    Args:
+        scores: 1D array of decision scores for test samples.
+        labels: Binary ground truth labels (0 = Real, 1 = Fake).
+        threshold: Decision threshold value (tau*). Samples with score >= threshold are predicted as Fake (1).
+        metric_name: Math or readable name for display (e.g., "$D^{(0)}$", "$|D^{(0)}|$").
+        output_dir: Directory where output plots will be saved.
+        file_prefix: Prefix for output filename (e.g. "confusion_matrix_abs_d0").
+        best_acc: Optional accuracy percentage for display in title.
+        formats: File formats to save (default: ("pdf", "png")).
+
+    Returns:
+        Dict mapping format name to output file path.
+    """
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    preds = (scores >= threshold).astype(int)
+    cm = confusion_matrix(labels, preds)
+
+    if best_acc is None:
+        total = cm.sum()
+        correct = np.diag(cm).sum()
+        best_acc = (correct / total) * 100.0 if total > 0 else 0.0
+
+    plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.size': 11})
+    fig, ax = plt.subplots(figsize=(6.5, 5.2), dpi=300)
+
+    im = ax.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.ax.tick_params(labelsize=10)
+
+    classes = ["Real Image (0)", "AI / Fake (1)"]
+    tick_marks = np.arange(len(classes))
+    ax.set_xticks(tick_marks)
+    ax.set_xticklabels(classes, rotation=0, fontsize=10, fontweight="medium")
+    ax.set_yticks(tick_marks)
+    ax.set_yticklabels(classes, rotation=90, va="center", fontsize=10, fontweight="medium")
+
+    # Annotate counts and percentages in each cell
+    thresh_val = cm.max() / 2.0
+    total_samples = cm.sum()
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            count = cm[i, j]
+            pct = (count / total_samples) * 100.0 if total_samples > 0 else 0.0
+            cell_text = f"{count:,}\n({pct:.2f}%)"
+            ax.text(
+                j, i, cell_text,
+                ha="center", va="center",
+                color="white" if count > thresh_val else "#1a252c",
+                fontsize=12, fontweight="bold"
+            )
+
+    title_str = f"Confusion Matrix: {metric_name}\n$\\tau^* = {threshold:.4f}$  |  Best Acc = {best_acc:.2f}%"
+    ax.set_title(title_str, fontsize=12, fontweight="bold", pad=12)
+    ax.set_xlabel("Predicted Class", fontsize=11, labelpad=8)
+    ax.set_ylabel("True Ground Truth Class", fontsize=11, labelpad=8)
+
+    plt.tight_layout()
+    saved_paths = {}
+    for fmt in formats:
+        fmt_clean = fmt.lower().strip(".")
+        save_path = os.path.join(output_dir, f"{file_prefix}.{fmt_clean}")
+        fig.savefig(save_path, format=fmt_clean, bbox_inches="tight", dpi=300)
+        saved_paths[fmt_clean] = save_path
+
+    plt.close(fig)
+    print(f"📊 Saved individual Confusion Matrix plot: {saved_paths.get('pdf', list(saved_paths.values())[0])}")
+    return saved_paths
+
+
+def plot_roc_curves_comparison(
+    scores_dict: Dict[str, np.ndarray],
+    labels: np.ndarray,
+    output_dir: str,
+    file_prefix: str = "roc_curves_comparison",
+    model_name: str = "ZED",
+    display_names: Optional[Dict[str, str]] = None,
+    formats: Tuple[str, ...] = ("pdf", "png")
+) -> Dict[str, str]:
+    """
+    Plots an individual publication-grade ROC curves comparison for multiple metrics.
+    """
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.size': 11})
+    fig, ax = plt.subplots(figsize=(7.2, 5.5), dpi=300)
+
+    color_palette = {
+        "d0": "#1f77b4",
+        "abs_d0": "#ff7f0e",
+        "delta01": "#2ca02c",
+        "d0_top10": "#9467bd",
+        "d0_std": "#8c564b"
+    }
+    linestyles = {
+        "d0": "-",
+        "abs_d0": "--",
+        "delta01": "-.",
+        "d0_top10": ":",
+        "d0_std": (0, (3, 1, 1, 1))
+    }
+
+    if display_names is None:
+        display_names = {
+            "d0": "$D^{(0)}$ Mean Coding Cost",
+            "abs_d0": "$|D^{(0)}|$ Absolute Magnitude",
+            "delta01": "$|\\Delta^{01}|$ Multi-Scale Residual",
+            "d0_top10": "$D^{(0)}_{\\mathrm{top10}}$ Patch Anomaly",
+            "d0_std": "$D^{(0)}_{\\mathrm{std}}$ Spatial Std"
+        }
+
+    for key, sc in scores_dict.items():
+        if sc is None or len(sc) != len(labels):
+            continue
+        fpr, tpr, _ = roc_curve(labels, sc)
+        auc = roc_auc_score(labels, sc) * 100.0
+        disp_name = display_names.get(key, key)
+        color = color_palette.get(key, "#333333")
+        ls = linestyles.get(key, "-")
+        ax.plot(fpr, tpr, color=color, linestyle=ls, linewidth=2.3, label=f"{disp_name} (AUC = {auc:.2f}%)")
+
+    # Diagonal random guess baseline
+    ax.plot([0, 1], [0, 1], color="#7f7f7f", linestyle=":", linewidth=1.5, label="Random Guess (AUC = 50.0%)")
+
+    ax.set_title(f"Receiver Operating Characteristic (ROC) - {model_name}", fontsize=12, fontweight="bold", pad=12)
+    ax.set_xlabel("False Positive Rate (FPR)", fontsize=11, labelpad=8)
+    ax.set_ylabel("True Positive Rate (TPR / Sensitivity)", fontsize=11, labelpad=8)
+    ax.set_xlim([-0.02, 1.02])
+    ax.set_ylim([-0.02, 1.02])
+    ax.grid(True, linestyle=":", alpha=0.6)
+    ax.legend(loc="lower right", frameon=True, facecolor="white", framealpha=0.95, edgecolor="#cccccc")
+
+    plt.tight_layout()
+    saved_paths = {}
+    for fmt in formats:
+        fmt_clean = fmt.lower().strip(".")
+        save_path = os.path.join(output_dir, f"{file_prefix}.{fmt_clean}")
+        fig.savefig(save_path, format=fmt_clean, bbox_inches="tight", dpi=300)
+        saved_paths[fmt_clean] = save_path
+
+    plt.close(fig)
+    print(f"📊 Saved individual ROC comparison plot: {saved_paths.get('pdf', list(saved_paths.values())[0])}")
+    return saved_paths
+
+
+def plot_pr_curves_comparison(
+    scores_dict: Dict[str, np.ndarray],
+    labels: np.ndarray,
+    output_dir: str,
+    file_prefix: str = "pr_curves_comparison",
+    model_name: str = "ZED",
+    display_names: Optional[Dict[str, str]] = None,
+    formats: Tuple[str, ...] = ("pdf", "png")
+) -> Dict[str, str]:
+    """
+    Plots an individual publication-grade Precision-Recall (PR) curves comparison for multiple metrics.
+    """
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.size': 11})
+    fig, ax = plt.subplots(figsize=(7.2, 5.5), dpi=300)
+
+    color_palette = {
+        "d0": "#1f77b4",
+        "abs_d0": "#ff7f0e",
+        "delta01": "#2ca02c",
+        "d0_top10": "#9467bd",
+        "d0_std": "#8c564b"
+    }
+    linestyles = {
+        "d0": "-",
+        "abs_d0": "--",
+        "delta01": "-.",
+        "d0_top10": ":",
+        "d0_std": (0, (3, 1, 1, 1))
+    }
+
+    if display_names is None:
+        display_names = {
+            "d0": "$D^{(0)}$ Mean Coding Cost",
+            "abs_d0": "$|D^{(0)}|$ Absolute Magnitude",
+            "delta01": "$|\\Delta^{01}|$ Multi-Scale Residual",
+            "d0_top10": "$D^{(0)}_{\\mathrm{top10}}$ Patch Anomaly",
+            "d0_std": "$D^{(0)}_{\\mathrm{std}}$ Spatial Std"
+        }
+
+    for key, sc in scores_dict.items():
+        if sc is None or len(sc) != len(labels):
+            continue
+        p, r, _ = precision_recall_curve(labels, sc)
+        ap = average_precision_score(labels, sc) * 100.0
+        disp_name = display_names.get(key, key)
+        color = color_palette.get(key, "#333333")
+        ls = linestyles.get(key, "-")
+        ax.plot(r, p, color=color, linestyle=ls, linewidth=2.3, label=f"{disp_name} (AP = {ap:.2f}%)")
+
+    ax.set_title(f"Precision-Recall (PR) Curves - {model_name}", fontsize=12, fontweight="bold", pad=12)
+    ax.set_xlabel("Recall (Sensitivity)", fontsize=11, labelpad=8)
+    ax.set_ylabel("Precision (Positive Predictive Value)", fontsize=11, labelpad=8)
+    ax.set_xlim([-0.02, 1.02])
+    ax.set_ylim([-0.02, 1.02])
+    ax.grid(True, linestyle=":", alpha=0.6)
+    ax.legend(loc="lower left", frameon=True, facecolor="white", framealpha=0.95, edgecolor="#cccccc")
+
+    plt.tight_layout()
+    saved_paths = {}
+    for fmt in formats:
+        fmt_clean = fmt.lower().strip(".")
+        save_path = os.path.join(output_dir, f"{file_prefix}.{fmt_clean}")
+        fig.savefig(save_path, format=fmt_clean, bbox_inches="tight", dpi=300)
+        saved_paths[fmt_clean] = save_path
+
+    plt.close(fig)
+    print(f"📊 Saved individual PR comparison plot: {saved_paths.get('pdf', list(saved_paths.values())[0])}")
+    return saved_paths
+
+
+def export_all_detection_plots(
+    scores_dict: Dict[str, np.ndarray],
+    labels: np.ndarray,
+    metrics_dict: Dict[str, Dict[str, float]],
+    output_dir: str,
+    model_name: str = "Standard ZED",
+    formats: Tuple[str, ...] = ("pdf", "png")
+) -> Dict[str, Dict[str, str]]:
+    """
+    Automated high-level orchestrator that exports standalone publication-quality plots:
+      1. Standalone ROC Curves Comparison (PDF + PNG)
+      2. Standalone Precision-Recall Curves Comparison (PDF + PNG)
+      3. For EVERY surveyed metric (D^(0), |D^(0)|, |Delta^01|, Top-10%, etc.):
+         - Standalone Score Density Distribution (PDF + PNG)
+         - Standalone Confusion Matrix Heatmap (PDF + PNG)
+
+    Args:
+        scores_dict: Dict of metric_key -> 1D score array (e.g. {"d0": ..., "abs_d0": ..., "delta01": ...})
+        labels: 1D binary labels array (0 = Real, 1 = Fake)
+        metrics_dict: Dict containing computed metrics {"d0": {"auc": ..., "best_acc": ..., "best_threshold": ...}, ...}
+        output_dir: Target directory path for individual PDF and PNG plots.
+        model_name: Model title string (e.g., "Standard ZED" or "Modern ZED")
+        formats: Formats to export (default: ("pdf", "png"))
+
+    Returns:
+        Nested dict with paths to all generated plot files.
+    """
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    generated_files = {}
+
+    display_names = {
+        "d0": "$D^{(0)}$",
+        "abs_d0": "$|D^{(0)}|$",
+        "delta01": "$|\\Delta^{01}|$",
+        "d0_top10": "$D^{(0)}_{\\mathrm{top10}}$",
+        "d0_std": "$D^{(0)}_{\\mathrm{std}}$"
+    }
+
+    # 1. Export standalone ROC Curves Comparison
+    roc_paths = plot_roc_curves_comparison(
+        scores_dict=scores_dict,
+        labels=labels,
+        output_dir=output_dir,
+        file_prefix="roc_curves_comparison",
+        model_name=model_name,
+        display_names={
+            "d0": "$D^{(0)}$ Mean Cost",
+            "abs_d0": "$|D^{(0)}|$ Absolute Magnitude",
+            "delta01": "$|\\Delta^{01}|$ Multi-Scale Residual",
+            "d0_top10": "$D^{(0)}_{\\mathrm{top10}}$ Patch Anomaly",
+            "d0_std": "$D^{(0)}_{\\mathrm{std}}$ Spatial Std"
+        },
+        formats=formats
+    )
+    generated_files["roc_curves_comparison"] = roc_paths
+
+    # 2. Export standalone Precision-Recall Curves Comparison
+    pr_paths = plot_pr_curves_comparison(
+        scores_dict=scores_dict,
+        labels=labels,
+        output_dir=output_dir,
+        file_prefix="pr_curves_comparison",
+        model_name=model_name,
+        display_names={
+            "d0": "$D^{(0)}$ Mean Cost",
+            "abs_d0": "$|D^{(0)}|$ Absolute Magnitude",
+            "delta01": "$|\\Delta^{01}|$ Multi-Scale Residual",
+            "d0_top10": "$D^{(0)}_{\\mathrm{top10}}$ Patch Anomaly",
+            "d0_std": "$D^{(0)}_{\\mathrm{std}}$ Spatial Std"
+        },
+        formats=formats
+    )
+    generated_files["pr_curves_comparison"] = pr_paths
+
+    # 3. Export standalone Score Density and Confusion Matrix for EACH metric
+    for metric_key, scores in scores_dict.items():
+        if scores is None or len(scores) != len(labels):
+            continue
+
+        metric_stat = metrics_dict.get(metric_key, {})
+        threshold = metric_stat.get("best_threshold", float(np.median(scores)))
+        best_acc = metric_stat.get("best_acc", None)
+        disp_name = display_names.get(metric_key, metric_key)
+
+        # Standalone Score Density Histogram
+        dens_prefix = f"density_{metric_key}"
+        dens_paths = plot_score_density(
+            scores=scores,
+            labels=labels,
+            threshold=threshold,
+            metric_name=disp_name,
+            output_dir=output_dir,
+            file_prefix=dens_prefix,
+            formats=formats
+        )
+        generated_files[dens_prefix] = dens_paths
+
+        # Standalone Confusion Matrix Heatmap
+        cm_prefix = f"confusion_matrix_{metric_key}"
+        cm_paths = plot_confusion_matrix_individual(
+            scores=scores,
+            labels=labels,
+            threshold=threshold,
+            metric_name=disp_name,
+            output_dir=output_dir,
+            file_prefix=cm_prefix,
+            best_acc=best_acc,
+            formats=formats
+        )
+        generated_files[cm_prefix] = cm_paths
+
+    print(f"\n✅ All individual standalone detection plots successfully exported to: {output_dir}")
+    return generated_files
+
+
 def plot_detection_dashboard(
     d0_scores: np.ndarray,
     abs_d0_scores: np.ndarray,
@@ -280,7 +697,7 @@ def plot_detection_dashboard(
     d0_top10_scores: Optional[np.ndarray] = None
 ):
     """
-    Plots a publication-ready 4-panel Zero-Shot Detection Evaluation Dashboard:
+    Plots a publication-ready 4-panel Zero-Shot Detection Evaluation Dashboard (Legacy combined layout):
       1. ROC Curves for D^(0), |D^(0)|, |Delta^01|, and optional Top-10% Patch Anomaly D^(0)_top10
       2. Precision-Recall (PR) Curves
       3. Real vs AI Score Density Histogram & Optimal Threshold Line
