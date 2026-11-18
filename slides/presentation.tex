@@ -215,7 +215,7 @@
   \framesubtitle{TỔNG QUAN LỘ TRÌNH \;\textbar\; PRESENTATION ROADMAP}
   \begin{columns}[t]
     \begin{column}{0.48\textwidth}
-      \begin{accentbox}[equal height group=toc1, top=0.7mm, bottom=0.7mm]{ElectricBlue}{01. Phương pháp đề xuất ZED}
+      \begin{accentbox}[equal height group=toc1, top=0.7mm, bottom=0.7mm]{ElectricBlue}{01. Phương pháp nghiên cứu ZED}
         \raggedright\scriptsize
         \textbf{3.1 Bối cảnh:} Khởi nguồn từ next-token prediction \& NLL.\\
         \vspace{0.04em}
@@ -232,18 +232,18 @@
       \end{accentbox}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{accentbox}[equal height group=toc1, top=0.7mm, bottom=0.7mm]{DeepPurple}{03. Kết quả thực nghiệm kiểm thử}
+      \begin{accentbox}[equal height group=toc1, top=0.7mm, bottom=0.7mm]{DeepPurple}{03. Thực nghiệm của Paper gốc (ECCV 2024)}
         \raggedright\scriptsize
-        \textbf{4.1 Cấu hình \& dashboard:} Đánh giá 179,042 ảnh trên 2x Tesla T4.\\
+        \textbf{5.1 Thiết lập benchmark:} Open Images (338k ảnh thật, 0 ảnh AI), tập kiểm thử 29k ảnh AI từ hơn 20 mô hình sinh.\\
         \vspace{0.04em}
-        \textbf{4.2 Đánh giá phân tách:} Đường cong ROC và bảng chỉ số thực nghiệm.\\
-        \vspace{0.04em}
-        \textbf{4.3 Phân tích chuyên sâu:} Score density, confusion matrix, false alarm rate $<0.05\%$.
+        \textbf{5.2 So sánh SoTA:} Vượt trội các mô hình giám sát khi gặp generator mới, đạt AUC $>90\text{--}95\%$, $+3.4\%$ accuracy.
       \end{accentbox}
       \vspace{0.05em}
-      \begin{accentbox}[equal height group=toc2, top=0.7mm, bottom=0.7mm]{MidnightNavy}{04. Kết luận}
+      \begin{accentbox}[equal height group=toc2, top=0.7mm, bottom=0.7mm]{MidnightNavy}{04. Thực nghiệm độc lập \& Đánh giá 70/30}
         \raggedright\scriptsize
-        Tổng kết đóng góp khoa học, tính tổng quát zero-shot bền vững trên các mô hình sinh mới và ý nghĩa thực tiễn.
+        \textbf{6.1 Huấn luyện:} 32 epochs (~29h GPU), loss giảm 58.27 $\to$ 29.20.\\
+        \vspace{0.04em}
+        \textbf{6.2 Kiểm định 179,042 ảnh:} Phân tầng 70\% Calib $\to$ 30\% Test ngoài mẫu; $|D^{(0)}|$ đạt 68.76\% AUC, 64.01\% Balanced Acc.
       \end{accentbox}
     \end{column}
   \end{columns}
@@ -599,179 +599,256 @@
   \end{columns}
 \end{frame}
 
-% ==================== SLIDE 13: 4.1 CẤU HÌNH THỰC NGHIỆM & QUY MÔ KIỂM ĐỊNH ====================
-\begin{frame}{4.1 Cấu hình thực nghiệm \& Quy mô kiểm định diện rộng}
-  \framesubtitle{KẾT QUẢ THỰC NGHIỆM \;\textbar\; EXPERIMENTAL EVALUATION}
-  \begin{columns}[c, totalwidth=\linewidth]
-    \begin{column}{0.44\linewidth}
-      \begin{cleanbox}[equal height group=s15box, top=0.6mm, bottom=0.6mm]{Tập dữ liệu kiểm định diện rộng}
+% ==================== SLIDE 13: 5.1 THỰC NGHIỆM PAPER GỐC: DATASETS ====================
+\begin{frame}{5.1 Thực nghiệm paper gốc: Dữ liệu huấn luyện \& Benchmark}
+  \framesubtitle{THỰC NGHIỆM PAPER GỐC \;\textbar\; ORIGINAL PAPER EVALUATION}
+  \begin{columns}[t, totalwidth=\linewidth]
+    \begin{column}{0.48\linewidth}
+      \begin{cleanbox}[equal height group=origexp, top=0.8mm, bottom=0.8mm]{Thiết lập huấn luyện (Training Set)}
         \raggedright\scriptsize
-        \textbf{Tổng số lượng ảnh:} \textbf{179,042 ảnh} (diện rộng).\\
-        \vspace{0.06em}
-        \textbf{Ảnh thật tự nhiên:} \textbf{168,712 ảnh} (chiếm 94.2\%).\\
-        \vspace{0.06em}
-        \textbf{Ảnh do AI sinh:} \textbf{10,330 ảnh} (chiếm 5.8\%).\\
-        \vspace{0.06em}
-        \textbf{Mất cân bằng lớn:} Tỷ lệ $\sim$16:1 mô phỏng thực tế.
+        $\bullet$ \textbf{Khung tiếp cận One-Class (Real-only):}\\
+        Chỉ học trên ảnh tự nhiên, \textbf{hoàn toàn không có ảnh AI}.
+        \vspace{0.18em}
+
+        $\bullet$ \textbf{Tập dữ liệu huấn luyện chính:}\\
+        \textbf{Open Images dataset} ($\approx$338,000 ảnh chất lượng cao).
+        \vspace{0.18em}
+
+        $\bullet$ \textbf{Các tập dữ liệu khảo sát đối chiếu:}\\
+        Huấn luyện đối sánh độc lập trên \textbf{LAION} ($\approx$117k ảnh) và \textbf{MS-COCO} ($\approx$106k ảnh).
+        \vspace{0.18em}
+
+        $\bullet$ \textbf{Kiểm định không bị ảnh hưởng nén JPEG:}\\
+        Bổ sung biến thể nén JPEG ngẫu nhiên (Quality 80--100) để chứng minh bộ nén không bị lệ thuộc vào định dạng nén.
+        \vspace{0.18em}
+
+        $\bullet$ \textbf{Cấu hình:}\\
+        SReC 3 cấp độ phân giải subpixel ($L=3$), mô hình Discretized Logistic Mixture ($K=10$), tối ưu hóa NLL.
       \end{cleanbox}
-      \vspace{0.10em}
-      \begin{accentbox}[equal height group=s15box, top=0.6mm, bottom=0.6mm]{ElectricBlue}{Hạ tầng tính toán Multi-GPU}
-        \raggedright\scriptsize
-        \textbf{Phần cứng:} 2x GPU Tesla T4 (DataParallel Kaggle).\\
-        \vspace{0.06em}
-        \textbf{Khối lượng:} 5,596 batches (batch size 32).\\
-        \vspace{0.06em}
-        \textbf{Thời gian thực thi:} 2 giờ 31 phút 52 giây.\\
-        \vspace{0.06em}
-        \textbf{Checkpoint:} zed\_last.pth (Epoch 32).
-      \end{accentbox}
     \end{column}
-    \begin{column}{0.54\linewidth}
-      \centering
-      \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{figures/roc_curves_comparison.pdf}\\[0.08em]
-      \tiny\textcolor{SlateSub}{So sánh đường cong ROC đa chỉ số ($D^{(0)}$, $|D^{(0)}|$, $|\Delta^{01}|$) trên 179,042 ảnh.}
+    \begin{column}{0.50\linewidth}
+      \begin{accentbox}[equal height group=origexp, top=0.8mm, bottom=0.8mm]{ElectricBlue}{Tập kiểm thử Benchmark quy mô lớn}
+        \raggedright\scriptsize
+        $\bullet$ \textbf{Khảo sát trên hơn 20 mô hình sinh AI:}\\
+        \vspace{0.08em}
+        {\tiny
+        \textbf{Nhóm GANs:} StyleGAN2, BigGAN, StarGAN, GigaGAN, Diff-GAN, GALIP\\[0.15em]
+        \textbf{Nhóm Diffusion:} DDPM, ADM, GLIDE, DALL-E 2/3, Midjourney, SD 1.4/2/XL, DeepFloyd-IF, DiT, Firefly}
+        \vspace{0.18em}
+
+        $\bullet$ \textbf{Quy mô dữ liệu kiểm thử chuẩn:}\\
+        \textbf{29,000 ảnh AI} đối sánh với \textbf{6,000 ảnh thật} đối chứng ghép cặp theo nội dung ngữ nghĩa (COCO, ImageNet, FFHQ, LSUN, LAION, RAISE uncompressed).
+        \vspace{0.18em}
+
+        $\bullet$ \textbf{Nguyên tắc zero-shot công bằng:}\\
+        Loại trừ hoàn toàn các bộ sinh ProGAN và Latent Diffusion vốn đã được dùng để huấn luyện các phương pháp giám sát khác.
+      \end{accentbox}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ==================== SLIDE 14: 4.2 ĐÁNH GIÁ PHÂN TÁCH: ROC CURVES ====================
-\begin{frame}{4.2 Đánh giá phân tách: So sánh hiệu năng các chỉ số}
-  \framesubtitle{KẾT QUẢ THỰC NGHIỆM \;\textbar\; EXPERIMENTAL EVALUATION}
+% ==================== SLIDE 14: 5.2 THỰC NGHIỆM PAPER GỐC: SOTA COMPARISON ====================
+\begin{frame}{5.2 Thực nghiệm paper gốc: Kết quả kiểm thử \& So sánh SoTA}
+  \framesubtitle{THỰC NGHIỆM PAPER GỐC \;\textbar\; ORIGINAL PAPER EVALUATION}
+  \begin{columns}[c, totalwidth=\linewidth]
+    \begin{column}{0.54\linewidth}
+      \begin{cleanbox}[top=0.6mm, bottom=0.6mm]{So sánh đối chuẩn AUC (\%) trên các bộ sinh tiêu biểu (Paper Table 2)}
+        \centering\tiny
+        \setlength{\tabcolsep}{1.6pt}
+        \begin{tabular}{lcccccc}
+          \toprule
+          \textbf{Tập dữ liệu (Real)} & \textbf{Wang} & \textbf{Corvi} & \textbf{Ojha} & \textbf{DIRE} & \textbf{$|D^{(0)}|$} & \textbf{$|\Delta^{01}|$} \\
+          \midrule
+          GauGAN (COCO)        & 98.9 & 83.8 & \textbf{100.0} & 99.9 & 99.8 & 99.7 \\
+          BigGAN (ImageNet)    & 92.7 & 83.4 & \textbf{99.6}  & 99.8 & 88.6 & 92.6 \\
+          StyleGAN2 (FFHQ)     & 94.9 & 58.4 & 91.0           & 55.5 & 87.7 & \textbf{88.7} \\
+          DDPM (FFHQ)          & 31.6 & \textbf{100.0} & 77.7 & 23.1 & 25.2 & 79.6 \\
+          DALL-E (LAION)       & 66.4 & 98.3 & 97.3           & 99.8 & 95.8 & 95.4 \\
+          SDXL (RAISE)         & 42.1 & 65.4 & 76.5           & 52.8 & 91.2 & \textbf{92.5} \\
+          DiT (ImageNet)       & 70.9 & 60.6 & \textbf{98.0}  & 83.3 & 78.4 & 83.1 \\
+          Midjourney (RAISE)   & 48.6 & 78.4 & 85.3           & 57.8 & 93.6 & \textbf{94.8} \\
+          \bottomrule
+        \end{tabular}
+      \end{cleanbox}
+    \end{column}
+    \begin{column}{0.44\linewidth}
+      \begin{accentbox}[top=1.0mm, bottom=1.0mm]{DeepPurple}{Những phát hiện mấu chốt của tác giả}
+        \raggedright\tiny
+        $\bullet$ \textbf{Điểm yếu của phương pháp giám sát (Supervised):}\\
+        Các mô hình huấn luyện trên ProGAN (như Wang2020) tụt dốc nghiêm trọng khi gặp mô hình khuếch tán mới: SDXL (42.1\%), Midjourney (48.6\%) --- thấp hơn cả đoán ngẫu nhiên.
+        \vspace{0.18em}
+
+        $\bullet$ \textbf{Tính bền vững của ZED Zero-Shot:}\\
+        ZED duy trì AUC vượt trội $>90\text{--}95\%$ trên các kiến trúc hiện đại nhất (SDXL 92.5\%, Midjourney 94.8\%, DALL-E 95.8\%).
+        \vspace{0.18em}
+
+        $\bullet$ \textbf{Vượt trội toàn diện SoTA:}\\
+        ZED đạt mức cải thiện trung bình \textbf{+3.4\% Accuracy} so với phương pháp tốt nhất trước đó mà không phụ thuộc vào bất kỳ bộ sinh cụ thể nào.
+      \end{accentbox}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================== SLIDE 15: 6.1 THỰC NGHIỆM ĐỘC LẬP: QUÁ TRÌNH HUẤN LUYỆN ====================
+\begin{frame}{6.1 Thực nghiệm độc lập: Động thái huấn luyện mô hình SReC}
+  \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
+  \begin{columns}[c, totalwidth=\linewidth]
+    \begin{column}{0.42\linewidth}
+      \begin{cleanbox}[equal height group=trainbox, top=0.6mm, bottom=0.6mm]{Cấu hình huấn luyện thực tế}
+        \raggedright\scriptsize
+        $\bullet$ \textbf{Số epoch:} 32 epochs hoàn thành trọn vẹn.\\
+        \vspace{0.06em}
+        $\bullet$ \textbf{Thời gian huấn luyện:} $\approx$28.8 giờ GPU ($\sim$53--55 phút/epoch).\\
+        \vspace{0.06em}
+        $\bullet$ \textbf{Kiến trúc:} SReC-CNN (3 levels, $K=10$).
+      \end{cleanbox}
+      \vspace{0.10em}
+      \begin{accentbox}[equal height group=trainbox, top=0.6mm, bottom=0.6mm]{ElectricBlue}{Động thái hội tụ mất mát (Loss)}
+        \raggedright\tiny
+        $\bullet$ \textbf{Train Loss:} Giảm sâu từ \textbf{58.27} $\to$ \textbf{29.20}.\\
+        \vspace{0.06em}
+        $\bullet$ \textbf{Validation Loss:} Giảm từ \textbf{43.00} $\to$ \textbf{29.21} (epoch 30), hội tụ vững chắc không bị overfit.\\
+        \vspace{0.06em}
+        $\bullet$ \textbf{Hội tụ 3 cấp độ phân giải subpixel:}\\
+        -- Level 0 ($H \times W$): $18.56 \to 8.41$\\
+        -- Level 1 ($H/2 \times W/2$): $19.51 \to 9.82$\\
+        -- Level 2 ($H/4 \times W/4$): $20.20 \to 10.98$
+      \end{accentbox}
+    \end{column}
+    \begin{column}{0.56\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{figures/training_curves_merged.pdf}\\[0.08em]
+      \tiny\textcolor{SlateSub}{Đường cong hội tụ thực nghiệm: Train/Val loss và phân rã 3 cấp độ subpixel qua 32 epochs.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================== SLIDE 16: 6.2 CẤU HÌNH KIỂM ĐỊNH VÀ PHÂN TẦNG 70/30 ====================
+\begin{frame}{6.2 Cấu hình kiểm định diện rộng \& Phân tầng 70/30}
+  \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
+  \begin{columns}[c, totalwidth=\linewidth]
+    \begin{column}{0.44\linewidth}
+      \begin{cleanbox}[top=0.4mm, bottom=0.4mm]{Tập dữ liệu kiểm định diện rộng}
+        \raggedright\scriptsize
+        \textbf{Tổng số lượng ảnh:} \textbf{179,042 ảnh}.\\
+        \vspace{0.04em}
+        \textbf{Ảnh thật tự nhiên:} \textbf{168,712 ảnh} (94.2\%).\\
+        \vspace{0.04em}
+        \textbf{Ảnh do AI sinh:} \textbf{10,330 ảnh} (5.8\%).\\
+        \vspace{0.04em}
+        \textbf{Mất cân bằng lớn:} Tỷ lệ $\sim$16:1 mô phỏng thực tế.
+      \end{cleanbox}
+      \vspace{0.06em}
+      \begin{accentbox}[top=0.4mm, bottom=0.4mm]{TealAccent}{Phân tầng khoa học (Stratified Split)}
+        \raggedright\tiny
+        $\bullet$ \textbf{Tập Calibration (70\%):} 125,330 ảnh (118,099 thật + 7,231 AI) dùng tối ưu ngưỡng quyết định $\tau^*$.\\
+        \vspace{0.04em}
+        $\bullet$ \textbf{Tập Test ngoài mẫu (30\%):} 53,712 ảnh (50,613 thật + 3,099 AI) kiểm định độc lập với $\tau^*$ cố định.\\
+        \vspace{0.04em}
+        $\bullet$ \textbf{Phần cứng:} 2x Tesla T4 (DataParallel Kaggle).
+      \end{accentbox}
+    \end{column}
+    \begin{column}{0.54\linewidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{figures/roc_curves_comparison.pdf}\\[0.06em]
+      \tiny\textcolor{SlateSub}{Đường cong ROC đa chỉ số trên tập Test độc lập (30\%).}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================== SLIDE 17: 6.3 ĐÁNH GIÁ PHÂN TÁCH TRÊN TẬP TEST ====================
+\begin{frame}{6.3 Đánh giá phân tách: So sánh hiệu năng trên tập Test (30\%)}
+  \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
   \begin{columns}[c, onlytextwidth]
     \begin{column}{0.44\textwidth}
       % 2 ô KPI Stat Card
       \noindent\begin{minipage}[t]{0.48\linewidth}
         \begin{statbox}{ElectricBlue}{KPI 1}
-          {\fontsize{13}{15}\selectfont\textbf{\textcolor{ElectricBlue}{68.73\%}}}\\[0.05em]
+          {\fontsize{13}{15}\selectfont\textbf{\textcolor{ElectricBlue}{68.76\%}}}\\[0.05em]
           {\tiny\textbf{\textcolor{MidnightNavy}{ROC-AUC $|D^{(0)}|$}}}
         \end{statbox}
       \end{minipage}\hfill
       \begin{minipage}[t]{0.48\linewidth}
         \begin{statbox}{EmeraldGreen}{KPI 2}
-          {\fontsize{13}{15}\selectfont\textbf{\textcolor{EmeraldGreen}{59.74\%}}}\\[0.05em]
-          {\tiny\textbf{\textcolor{MidnightNavy}{ROC-AUC $|\Delta^{01}|$}}}
+          {\fontsize{13}{15}\selectfont\textbf{\textcolor{EmeraldGreen}{64.01\%}}}\\[0.05em]
+          {\tiny\textbf{\textcolor{MidnightNavy}{Balanced Acc}}}
         \end{statbox}
       \end{minipage}
       \vspace{0.15em}
-      \begin{cleanbox}[top=0.8mm,bottom=0.8mm]{Bảng chỉ số thực nghiệm}
+      \begin{cleanbox}[top=0.8mm,bottom=0.8mm]{Bảng chỉ số kiểm định trên tập Test (30\%)}
         \centering\scriptsize
-        \setlength{\tabcolsep}{2.5pt}
-        \begin{tabular}{lccc}
+        \setlength{\tabcolsep}{1.6pt}
+        \begin{tabular}{lcccc}
           \toprule
-          \textbf{Statistic} & \textbf{ROC-AUC} & \textbf{Best Acc} & \textbf{Threshold $\tau^*$} \\
+          \textbf{Chỉ số} & \textbf{ROC-AUC} & \textbf{Bal. Acc} & \textbf{Recall} & \textbf{Ngưỡng $\tau^*$} \\
           \midrule
-          $D^{(0)}$        & 31.28\% & 50.01\% & 3.707 \\
-          \textbf{$|D^{(0)}|$} & \textbf{68.73\%} & \textbf{63.85\%} & \textbf{2.381} \\
-          \textbf{$|\Delta^{01}|$} & \textbf{59.74\%} & \textbf{57.76\%} & \textbf{0.762} \\
+          $D^{(0)}$        & 31.23\% & 50.01\% & 0.06\% & 3.707 \\
+          \textbf{$|D^{(0)}|$} & \textbf{68.76\%} & \textbf{64.01\%} & \textbf{69.25\%} & \textbf{2.381} \\
+          \textbf{$|\Delta^{01}|$} & \textbf{59.31\%} & \textbf{57.53\%} & \textbf{51.98\%} & \textbf{0.764} \\
           \bottomrule
         \end{tabular}
       \end{cleanbox}
       \vspace{0.15em}
       \begin{notebox}[top=0.8mm,bottom=0.8mm]
         \raggedright\tiny
-        \textbf{Nhận xét then chốt:}\\
-        $|D^{(0)}|$ đạt hiệu năng vượt trội \textbf{68.73\%} ROC-AUC và \textbf{63.85\%} độ chính xác mà không cần bất kỳ ảnh AI nào trong quá trình huấn luyện.
+        \textbf{Tính bền vững ngoài mẫu:}\\
+        $|D^{(0)}|$ đạt Balanced Acc \textbf{64.01\%} trên tập Test độc lập (không suy giảm so với 63.78\% ở tập Calib), khẳng định tính tổng quát hóa không bị overfit.
       \end{notebox}
     \end{column}
     \begin{column}{0.54\textwidth}
       \centering
       \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{figures/pr_curves_comparison.pdf}\\[0.15em]
-      \tiny\textcolor{SlateSub}{Đường cong Precision-Recall: Khảo sát trong kịch bản mất cân bằng nghiêm trọng (16:1)}
+      \tiny\textcolor{SlateSub}{Đường cong PR: Khảo sát kịch bản mất cân bằng nghiêm trọng (16:1)}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ==================== SLIDE 15: 4.3 PHÂN TÍCH CHỈ SỐ CƠ SỞ D^(0) ====================
-\begin{frame}{4.3 Phân tích chỉ số cơ sở $D^{(0)}$: Score density \& Confusion matrix}
-  \framesubtitle{KẾT QUẢ THỰC NGHIỆM \;\textbar\; EXPERIMENTAL EVALUATION}
-  \begin{columns}[T, totalwidth=\linewidth]
-    \begin{column}{0.31\linewidth}
-      \vspace{0.05cm}
-      \centering
-      \includegraphics[width=\linewidth,height=0.41\textheight,keepaspectratio]{figures/density_d0.pdf}\\[0.12em]
-      \tiny\textcolor{SlateSub}{Score Density $D^{(0)}$ (Phân bố AI lệch âm)}
-      \vspace{0.15em}
-      \begin{notebox}[equal height group=s17box, top=0.8mm, bottom=0.8mm]
-        \raggedright\tiny
-        \textbf{Cơ chế chồng lấn:} Ảnh AI (đỏ) có NLL thấp hơn kỳ vọng $H$, dẫn tới phân bố lệch âm sâu so với ảnh thật (xanh).
-      \end{notebox}
-    \end{column}
-    \begin{column}{0.31\linewidth}
-      \vspace{0.05cm}
-      \centering
-      \includegraphics[width=\linewidth,height=0.41\textheight,keepaspectratio]{figures/confusion_matrix_d0.pdf}\\[0.12em]
-      \tiny\textcolor{SlateSub}{Confusion Matrix $D^{(0)}$ ($\tau^* = 3.707$)}
-      \vspace{0.15em}
-      \begin{notebox}[equal height group=s17box, top=0.8mm, bottom=0.8mm]
-        \raggedright\tiny
-        \textbf{Hạn chế của $D^{(0)}$ đơn lẻ:} Phân loại 1 phía tại $\tau^* = 3.707$ bắt đúng 168,631 ảnh thật nhưng bỏ lọt gần như toàn bộ ảnh AI.
-      \end{notebox}
-    \end{column}
-    \begin{column}{0.35\linewidth}
-      \vspace{0.05cm}
-      \begin{accentbox}[top=1.5mm, bottom=1.5mm]{ElectricBlue}{Bản chất vật lý \& Insights}
-        \raggedright\tiny
-        \textbf{1. Vì sao $D^{(0)}$ có AUC thấp (31.28\%)?}\\
-        Do giả định điểm số $D^{(0)} > \tau^*$ để gắn nhãn AI bị đảo chiều khi ảnh AI bị nén quá mức ($D^{(0)} < 0$).
-        \vspace{0.20em}
-
-        \textbf{2. Động lực đề xuất $|D^{(0)}|$:}\\
-        Cần một đại lượng đo khoảng cách 2 phía: Dù nén quá mức ($D^{(0)} < 0$) hay nhiễu dư thừa ($D^{(0)} > 0$) đều là dị biệt!
-        \vspace{0.20em}
-
-        \textbf{3. Tỷ lệ báo nhầm cực thấp ($0.048\%$):}\\
-        Chỉ 81 / 168,712 ảnh thật bị báo nhầm, khẳng định mô hình học phân phối ảnh thật cực kỳ chuẩn mực.
-      \end{accentbox}
-    \end{column}
-  \end{columns}
-\end{frame}
-
-% ==================== SLIDE 16: 4.4 PHÂN TÍCH CHỈ SỐ ĐỘT PHÁ |D^(0)| ====================
-\begin{frame}{4.4 Phân tích chỉ số đột phá $|D^{(0)}|$: Phân tách vượt trội}
-  \framesubtitle{KẾT QUẢ THỰC NGHIỆM \;\textbar\; EXPERIMENTAL EVALUATION}
+% ==================== SLIDE 18: 6.4 PHÂN TÍCH CHỈ SỐ ĐỘT PHÁ |D^(0)| ====================
+\begin{frame}{6.4 Phân tích chi tiết chỉ số đột phá $|D^{(0)}|$ trên tập Test}
+  \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
   \begin{columns}[T, totalwidth=\linewidth]
     \begin{column}{0.31\linewidth}
       \vspace{0.05cm}
       \centering
       \includegraphics[width=\linewidth,height=0.41\textheight,keepaspectratio]{figures/density_abs_d0.pdf}\\[0.12em]
-      \tiny\textcolor{SlateSub}{Score Density $|D^{(0)}|$ (Phân tách rõ rệt)}
+      \tiny\textcolor{SlateSub}{Score Density $|D^{(0)}|$ (Vạch ngưỡng $\tau^* = 2.381$)}
       \vspace{0.15em}
       \begin{notebox}[equal height group=s18box, top=0.8mm, bottom=0.8mm]
         \raggedright\tiny
-        \textbf{Phân bố tách bạch:} Lấy trị tuyệt đối đẩy phân phối ảnh AI dịch hẳn sang phải (mean cao hơn ảnh thật), tạo khoảng phân cách rõ rệt.
+        \textbf{Phân bố tách bạch:} Lấy trị tuyệt đối đưa phân phối ảnh AI dịch sang phải (mean cao hơn ảnh thật), tạo khoảng phân cách rõ rệt.
       \end{notebox}
     \end{column}
     \begin{column}{0.31\linewidth}
       \vspace{0.05cm}
       \centering
       \includegraphics[width=\linewidth,height=0.41\textheight,keepaspectratio]{figures/confusion_matrix_abs_d0.pdf}\\[0.12em]
-      \tiny\textcolor{SlateSub}{Confusion Matrix $|D^{(0)}|$ ($\tau^* = 2.381$)}
+      \tiny\textcolor{SlateSub}{Confusion Matrix $|D^{(0)}|$ trên tập Test}
       \vspace{0.15em}
       \begin{notebox}[equal height group=s18box, top=0.8mm, bottom=0.8mm]
         \raggedright\tiny
-        \textbf{Cân bằng hai lớp:} Nhận diện chính xác 123,800 ảnh thật và phát hiện đúng 5,610 ảnh AI, đạt \textbf{Best Acc 63.85\%}.
+        \textbf{Độ nhạy thực tế:} Phát hiện đúng \textbf{2,146 / 3,099 ảnh AI} (Recall 69.25\%) và nhận diện đúng 29,747 ảnh thật trên tập kiểm định ngoài mẫu.
       \end{notebox}
     \end{column}
     \begin{column}{0.35\linewidth}
       \vspace{0.05cm}
       \begin{accentbox}[top=1.5mm, bottom=1.5mm]{EmeraldGreen}{Ý nghĩa phương pháp \& Đột phá}
         \raggedright\tiny
-        \textbf{1. Bước nhảy vọt về hiệu năng:}\\
-        ROC-AUC tăng từ \textbf{31.28\%} lên \textbf{68.73\%} (+37.45\%), biến một thước đo đơn phía thành bộ phân loại mạnh mẽ.
+        \textbf{1. Cơ chế đối xứng 2 phía:}\\
+        Khắc phục triệt để hiện tượng ảnh AI bị nén quá mức ($D^{(0)} < 0$), nâng ROC-AUC từ 31.23\% lên 68.76\%.
         \vspace{0.20em}
 
-        \textbf{2. Xác lập chuẩn mực Zero-Shot:}\\
-        Đạt độ chính xác 63.85\% trên 179,042 ảnh hoàn toàn không cần fine-tune hay gán nhãn ảnh AI trong huấn luyện.
+        \textbf{2. Khả năng phát hiện zero-shot:}\\
+        Đạt độ nhạy gần 70\% trên ảnh AI hoàn toàn không cần học mẫu fake nào trong quá trình huấn luyện.
         \vspace{0.20em}
 
-        \textbf{3. Minh chứng thực nghiệm cho paper:}\\
-        Khẳng định tính đúng đắn của lý thuyết thông tin Shannon trong bài toán thị giác máy tính hiện đại.
+        \textbf{3. Minh chứng thực nghiệm cho paper gốc:}\\
+        Kết quả kiểm định diện rộng 179k ảnh hoàn toàn nhất quán với các kết luận lý thuyết của Cozzolino et al.
       \end{accentbox}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ==================== SLIDE 16: KẾT LUẬN ====================
+% ==================== SLIDE 19: KẾT LUẬN ====================
 \begin{frame}{Kết luận}
   \framesubtitle{TỔNG KẾT BÁO CÁO \;\textbar\; CONCLUSION}
   \begin{columns}[t]
@@ -794,15 +871,15 @@
       \begin{accentbox}[equal height group=conc]{TealAccent}{Ý nghĩa thực tiễn \& kết quả thực nghiệm}
         \raggedright\scriptsize
         \textbf{1. Năng lực zero-shot vượt bậc:}\\
-        Phát hiện hiệu quả các mô hình sinh hình ảnh mới lạ mà không cần tái huấn luyện hay fine-tune.
+        Cả paper gốc và thực nghiệm độc lập đều chứng minh ZED duy trì hiệu năng cao trên các mô hình sinh mới lạ.
         \vspace{0.25em}
 
         \textbf{2. Kiểm chứng quy mô lớn (179,042 ảnh):}\\
-        Khảo sát trong điều kiện mất cân bằng thực tế (16:1), khẳng định tính khả thi trên hạ tầng Multi-GPU.
+        Đánh giá phân tầng khoa học 70\% Calib / 30\% Test khẳng định tính ổn định ngoài mẫu (Balanced Acc 64.01\%, Recall 69.25\%).
         \vspace{0.25em}
 
-        \textbf{3. Tỷ lệ báo động nhầm cực thấp ($0.048\%$):}\\
-        Chỉ 81 trên 168,712 ảnh thật bị gắn nhãn nhầm, bảo vệ trải nghiệm người dùng trong hệ thống kiểm duyệt nội dung.
+        \textbf{3. Khả thi trong triển khai thực tế:}\\
+        Hệ thống không cần liên tục fine-tune khi xuất hiện các bộ sinh AI mới, mở ra giải pháp bền vững cho an toàn thông tin thị giác.
       \end{accentbox}
     \end{column}
   \end{columns}
