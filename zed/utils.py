@@ -35,38 +35,95 @@ def get_safe_device(requested_device: str = "cuda") -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def compute_metrics(scores: np.ndarray, labels: np.ndarray) -> Dict[str, float]:
+def compute_metrics(
+    scores: np.ndarray,
+    labels: np.ndarray,
+    fixed_threshold: Optional[float] = None
+) -> Dict[str, Any]:
     """
-    Computes ROC-AUC score, Best Balanced Accuracy, and optimal Decision Threshold.
+    Computes ROC-AUC score, Balanced Accuracy, Accuracy, Precision, Recall, FPR, F1,
+    and Confusion Matrix.
+    
+    If fixed_threshold is None:
+        Automatically determines the optimal decision threshold maximizing Balanced Accuracy
+        (used on the 70% Calibration set).
+    If fixed_threshold is provided:
+        Applies the fixed threshold directly to evaluate out-of-sample performance
+        (used on the 30% Test set).
     
     Args:
-        scores: Array of decision statistics (e.g. D^(0) or |Delta^01|) for test samples.
+        scores: Array of decision statistics (e.g. D^(0) or |Delta^01|) for samples.
                 Higher score indicates higher anomaly / likelihood of being AI-generated.
         labels: Binary labels array (0 = Real, 1 = Fake/AI-generated).
+        fixed_threshold: Optional pre-determined decision threshold (from calibration).
         
     Returns:
-        Dict containing:
-            - 'auc': Area Under the ROC Curve (%)
-            - 'best_acc': Best balanced accuracy (%) across all threshold settings
-            - 'best_threshold': Optimal decision threshold value
+        Dict containing comprehensive detection metrics and confusion matrix.
     """
     if len(np.unique(labels)) < 2:
-        return {"auc": 0.0, "best_acc": 0.0, "best_threshold": 0.0}
+        return {
+            "auc": 0.0,
+            "best_acc": 0.0,
+            "balanced_acc": 0.0,
+            "accuracy": 0.0,
+            "best_threshold": 0.0,
+            "threshold": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "fpr": 0.0,
+            "f1": 0.0,
+            "confusion_matrix": [[0, 0], [0, 0]]
+        }
 
     auc = roc_auc_score(labels, scores) * 100.0
     
     # Calculate ROC curve to find optimal threshold maximizing Balanced Accuracy
-    fpr, tpr, thresholds = roc_curve(labels, scores)
-    balanced_accs = (tpr + (1.0 - fpr)) / 2.0
-    best_idx = np.argmax(balanced_accs)
+    fpr_curve, tpr_curve, thresholds = roc_curve(labels, scores)
+    balanced_accs = (tpr_curve + (1.0 - fpr_curve)) / 2.0
+    best_idx = int(np.argmax(balanced_accs))
+    optimal_threshold = float(thresholds[best_idx])
+    best_internal_acc = float(balanced_accs[best_idx] * 100.0)
+
+    # Determine which threshold to evaluate
+    if fixed_threshold is None:
+        threshold = optimal_threshold
+        fixed_applied = False
+    else:
+        threshold = float(fixed_threshold)
+        fixed_applied = True
+
+    # Compute binary predictions with chosen threshold
+    preds = (scores >= threshold).astype(int)
     
-    best_acc = balanced_accs[best_idx] * 100.0
-    best_threshold = thresholds[best_idx]
+    tp = int(np.sum((labels == 1) & (preds == 1)))
+    tn = int(np.sum((labels == 0) & (preds == 0)))
+    fp = int(np.sum((labels == 0) & (preds == 1)))
+    fn = int(np.sum((labels == 1) & (preds == 0)))
+
+    recall = float((tp / (tp + fn) * 100.0) if (tp + fn) > 0 else 0.0)
+    tnr = float((tn / (tn + fp) * 100.0) if (tn + fp) > 0 else 0.0)
+    fpr_val = float((fp / (fp + tn) * 100.0) if (fp + tn) > 0 else 0.0)
+    precision = float((tp / (tp + fp) * 100.0) if (tp + fp) > 0 else 0.0)
+    accuracy = float((tp + tn) / len(labels) * 100.0)
+    balanced_acc = float((recall + tnr) / 2.0)
+    f1 = float((2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0)
+    cm = [[tn, fp], [fn, tp]]
 
     return {
         "auc": float(auc),
-        "best_acc": float(best_acc),
-        "best_threshold": float(best_threshold)
+        "best_acc": float(balanced_acc), # Kept for backward compatibility with plotting functions
+        "balanced_acc": float(balanced_acc),
+        "accuracy": float(accuracy),
+        "best_threshold": float(threshold), # Kept for backward compatibility with plotting functions
+        "threshold": float(threshold),
+        "precision": float(precision),
+        "recall": float(recall),
+        "fpr": float(fpr_val),
+        "f1": float(f1),
+        "confusion_matrix": cm,
+        "optimal_threshold_internal": float(optimal_threshold),
+        "best_acc_internal": float(best_internal_acc),
+        "fixed_threshold_applied": fixed_applied
     }
 
 def wrap_model_multigpu(

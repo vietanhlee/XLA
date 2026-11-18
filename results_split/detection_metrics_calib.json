@@ -1,0 +1,82 @@
+{
+  "dataset_split": {
+    "calib_samples": 125330,
+    "test_samples": 53712,
+    "seed": 42
+  },
+  "d0": {
+    "auc": 37.093741682159134,
+    "best_acc": 50.00084674722055,
+    "balanced_acc": 50.00084674722055,
+    "accuracy": 5.771164126705497,
+    "best_threshold": -1.1172203608651365,
+    "threshold": -1.1172203608651365,
+    "precision": 5.769660411081323,
+    "recall": 100.0,
+    "fpr": 99.9983065055589,
+    "f1": 10.909859006178381,
+    "confusion_matrix": [
+      [
+        2,
+        118097
+      ],
+      [
+        0,
+        7231
+      ]
+    ],
+    "optimal_threshold_internal": -1.1172203608651365,
+    "best_acc_internal": 50.00084674722055,
+    "fixed_threshold_applied": false
+  },
+  "abs_d0": {
+    "auc": 71.24777198539785,
+    "best_acc": 65.56579303247977,
+    "balanced_acc": 65.56579303247977,
+    "accuracy": 68.3802760711721,
+    "best_threshold": 2.17525718619859,
+    "threshold": 2.17525718619859,
+    "precision": 10.89087397392564,
+    "recall": 62.3841792283225,
+    "fpr": 31.252593163362942,
+    "f1": 18.54432591313642,
+    "confusion_matrix": [
+      [
+        81190,
+        36909
+      ],
+      [
+        2720,
+        4511
+      ]
+    ],
+    "optimal_threshold_internal": 2.17525718619859,
+    "best_acc_internal": 65.56579303247977,
+    "fixed_threshold_applied": false
+  },
+  "delta01": {
+    "auc": 64.84942808009973,
+    "best_acc": 61.3854980262868,
+    "balanced_acc": 61.3854980262868,
+    "accuracy": 71.27982127184234,
+    "best_threshold": 0.918024022529277,
+    "threshold": 0.918024022529277,
+    "precision": 10.076615589606929,
+    "recall": 50.200525515143134,
+    "fpr": 27.42952946256954,
+    "f1": 16.784186799213963,
+    "confusion_matrix": [
+      [
+        85705,
+        32394
+      ],
+      [
+        3601,
+        3630
+      ]
+    ],
+    "optimal_threshold_internal": 0.918024022529277,
+    "best_acc_internal": 61.3854980262868,
+    "fixed_threshold_applied": false
+  }
+}

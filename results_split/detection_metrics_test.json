@@ -1,0 +1,87 @@
+{
+  "dataset_split": {
+    "calib_samples": 125330,
+    "test_samples": 53712,
+    "seed": 42
+  },
+  "calibrated_thresholds": {
+    "d0": -1.1172203608651365,
+    "abs_d0": 2.17525718619859,
+    "delta01": 0.918024022529277
+  },
+  "d0": {
+    "auc": 36.90043895337834,
+    "best_acc": 50.000987888487145,
+    "balanced_acc": 50.000987888487145,
+    "accuracy": 5.7715221924337206,
+    "best_threshold": -1.1172203608651365,
+    "threshold": -1.1172203608651365,
+    "precision": 5.769767831542887,
+    "recall": 100.0,
+    "fpr": 99.99802422302571,
+    "f1": 10.910051047350818,
+    "confusion_matrix": [
+      [
+        1,
+        50612
+      ],
+      [
+        0,
+        3099
+      ]
+    ],
+    "optimal_threshold_internal": 5.173482015547749,
+    "best_acc_internal": 50.00460759606106,
+    "fixed_threshold_applied": true
+  },
+  "abs_d0": {
+    "auc": 71.20339615341406,
+    "best_acc": 65.47083004379856,
+    "balanced_acc": 65.47083004379856,
+    "accuracy": 68.15236818588025,
+    "best_threshold": 2.17525718619859,
+    "threshold": 2.17525718619859,
+    "precision": 10.823963752307435,
+    "recall": 62.43949661181026,
+    "fpr": 31.497836524213145,
+    "f1": 18.449656750572085,
+    "confusion_matrix": [
+      [
+        34671,
+        15942
+      ],
+      [
+        1164,
+        1935
+      ]
+    ],
+    "optimal_threshold_internal": 2.2156464691644944,
+    "best_acc_internal": 65.72903903850316,
+    "fixed_threshold_applied": true
+  },
+  "delta01": {
+    "auc": 64.75122771523286,
+    "best_acc": 61.12921793717064,
+    "balanced_acc": 61.12921793717064,
+    "accuracy": 70.8742925230861,
+    "best_threshold": 0.918024022529277,
+    "threshold": 0.918024022529277,
+    "precision": 9.922688646092901,
+    "recall": 50.11293965795418,
+    "fpr": 27.854503783612905,
+    "f1": 16.56533333333333,
+    "confusion_matrix": [
+      [
+        36515,
+        14098
+      ],
+      [
+        1546,
+        1553
+      ]
+    ],
+    "optimal_threshold_internal": 0.88803740412097,
+    "best_acc_internal": 61.249316678585394,
+    "fixed_threshold_applied": true
+  }
+}

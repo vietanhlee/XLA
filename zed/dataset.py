@@ -137,12 +137,14 @@ class EvaluationImageDataset(Dataset):
     """
     Dataset loader for Zero-Shot Evaluation (Test set containing Real and Fake images).
     Labels: 0 for REAL images, 1 for FAKE (AI-generated) images.
+    Supports either direct directory scanning or pre-split items list.
     """
 
     def __init__(
         self,
-        real_dir: str,
-        fake_dir: str,
+        real_dir: Optional[str] = None,
+        fake_dir: Optional[str] = None,
+        items: Optional[List[Tuple[Path, int]]] = None,
         image_size: Tuple[int, int] = (256, 256),
         max_samples_per_class: Optional[int] = None,
         max_fake_samples: Optional[int] = None,
@@ -150,34 +152,45 @@ class EvaluationImageDataset(Dataset):
         transform: Optional[Callable] = None
     ):
         super().__init__()
-        self.real_dir = Path(real_dir)
-        self.fake_dir = Path(fake_dir)
         self.image_size = image_size
         
         valid_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
         
-        effective_real_limit = max_real_samples if max_real_samples is not None else max_samples_per_class
-        effective_fake_limit = max_fake_samples if max_fake_samples is not None else max_samples_per_class
+        if items is not None:
+            self.items = items
+            self.real_dir = Path(real_dir) if real_dir else None
+            self.fake_dir = Path(fake_dir) if fake_dir else None
+            self.num_real = sum(1 for _, label in self.items if label == 0)
+            self.num_fake = sum(1 for _, label in self.items if label == 1)
+        elif real_dir is not None and fake_dir is not None:
+            self.real_dir = Path(real_dir)
+            self.fake_dir = Path(fake_dir)
+            
+            effective_real_limit = max_real_samples if max_real_samples is not None else max_samples_per_class
+            effective_fake_limit = max_fake_samples if max_fake_samples is not None else max_samples_per_class
 
-        real_items = []
-        if self.real_dir.exists():
-            for p in self.real_dir.rglob("*"):
-                if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
-                    real_items.append((p, 0)) # Label 0 = Real
-                    if effective_real_limit and len(real_items) >= effective_real_limit:
-                        break
-                    
-        fake_items = []
-        if self.fake_dir.exists():
-            for p in self.fake_dir.rglob("*"):
-                if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
-                    fake_items.append((p, 1)) # Label 1 = Fake
-                    if effective_fake_limit and len(fake_items) >= effective_fake_limit:
-                        break
+            real_items = []
+            if self.real_dir.exists():
+                for p in self.real_dir.rglob("*"):
+                    if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
+                        real_items.append((p, 0)) # Label 0 = Real
+                        if effective_real_limit and len(real_items) >= effective_real_limit:
+                            break
+                        
+            fake_items = []
+            if self.fake_dir.exists():
+                for p in self.fake_dir.rglob("*"):
+                    if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
+                        fake_items.append((p, 1)) # Label 1 = Fake
+                        if effective_fake_limit and len(fake_items) >= effective_fake_limit:
+                            break
 
-        self.num_real = len(real_items)
-        self.num_fake = len(fake_items)
-        self.items = real_items + fake_items
+            self.num_real = len(real_items)
+            self.num_fake = len(fake_items)
+            self.items = real_items + fake_items
+        else:
+            raise ValueError("Either 'items' or both 'real_dir' and 'fake_dir' must be provided.")
+
         print(f"📊 Evaluation Dataset Loaded: {self.num_real} Real images, {self.num_fake} Fake images (Total: {len(self.items)}).")
 
         if transform is not None:
@@ -199,3 +212,126 @@ class EvaluationImageDataset(Dataset):
         if tensor_img.max() <= 1.0 + 1e-5:
             tensor_img = tensor_img * 255.0
         return torch.clamp(tensor_img, 0.0, 255.0), label, str(path)
+
+
+def create_split_evaluation_datasets(
+    real_dir: str,
+    fake_dir: str,
+    test_split: float = 0.30,
+    seed: int = 42,
+    image_size: Tuple[int, int] = (256, 256),
+    max_samples_per_class: Optional[int] = None,
+    max_fake_samples: Optional[int] = None,
+    max_real_samples: Optional[int] = None,
+    transform: Optional[Callable] = None
+) -> Tuple[EvaluationImageDataset, Optional[EvaluationImageDataset]]:
+    """
+    Scans real_dir and fake_dir recursively, collects image paths for Real and Fake,
+    and splits both classes deterministically (stratified) into:
+      - Calibration Set (1 - test_split, default 70%): used to establish decision thresholds
+      - Test Set (test_split, default 30%): used for out-of-sample evaluation
+
+    Args:
+        real_dir: Directory containing real images
+        fake_dir: Directory containing fake / AI-generated images
+        test_split: Proportion of samples reserved for testing (default: 0.30)
+        seed: Random seed for reproducible splitting (default: 42)
+        image_size: Target image dimensions (default: (256, 256))
+        max_samples_per_class: Optional overall cap per class
+        max_fake_samples: Optional cap on fake images
+        max_real_samples: Optional cap on real images
+        transform: Optional image transform callable
+
+    Returns:
+        (calib_dataset, test_dataset)
+    """
+    real_path = Path(real_dir)
+    fake_path = Path(fake_dir)
+    valid_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+
+    effective_real_limit = max_real_samples if max_real_samples is not None else max_samples_per_class
+    effective_fake_limit = max_fake_samples if max_fake_samples is not None else max_samples_per_class
+
+    # 1. Collect all real image paths
+    real_items: List[Tuple[Path, int]] = []
+    if real_path.exists():
+        for p in real_path.rglob("*"):
+            if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
+                real_items.append((p, 0))
+                if effective_real_limit and len(real_items) >= effective_real_limit:
+                    break
+
+    # 2. Collect all fake image paths
+    fake_items: List[Tuple[Path, int]] = []
+    if fake_path.exists():
+        for p in fake_path.rglob("*"):
+            if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in valid_exts:
+                fake_items.append((p, 1))
+                if effective_fake_limit and len(fake_items) >= effective_fake_limit:
+                    break
+
+    if len(real_items) == 0 and len(fake_items) == 0:
+        raise ValueError(f"No valid images found in '{real_dir}' or '{fake_dir}'.")
+
+    # If test_split <= 0 or single sample, return full dataset as calibration
+    if test_split <= 0.0 or (len(real_items) + len(fake_items)) <= 1:
+        full_ds = EvaluationImageDataset(
+            items=real_items + fake_items,
+            real_dir=real_dir,
+            fake_dir=fake_dir,
+            image_size=image_size,
+            transform=transform
+        )
+        print("💡 test_split <= 0.0: Returning full dataset without split.")
+        return full_ds, None
+
+    # Deterministic stratified split
+    rng = np.random.default_rng(seed)
+
+    # Split Real images
+    num_real = len(real_items)
+    if num_real > 1:
+        real_idx = np.arange(num_real)
+        rng.shuffle(real_idx)
+        num_real_test = max(1, int(num_real * test_split))
+        real_test = [real_items[i] for i in real_idx[:num_real_test]]
+        real_calib = [real_items[i] for i in real_idx[num_real_test:]]
+    else:
+        real_test = []
+        real_calib = list(real_items)
+
+    # Split Fake images (use same RNG stream)
+    num_fake = len(fake_items)
+    if num_fake > 1:
+        fake_idx = np.arange(num_fake)
+        rng.shuffle(fake_idx)
+        num_fake_test = max(1, int(num_fake * test_split))
+        fake_test = [fake_items[i] for i in fake_idx[:num_fake_test]]
+        fake_calib = [fake_items[i] for i in fake_idx[num_fake_test:]]
+    else:
+        fake_test = []
+        fake_calib = list(fake_items)
+
+    calib_items = real_calib + fake_calib
+    test_items = real_test + fake_test
+
+    print(f"\n📂 Stratified Split (Seed={seed}, Test Split={test_split*100:.1f}%):")
+    print(f"   -> Calibration Set ({(1-test_split)*100:.1f}%): {len(real_calib)} Real + {len(fake_calib)} Fake = {len(calib_items)} images")
+    print(f"   -> Test Set ({test_split*100:.1f}%): {len(real_test)} Real + {len(fake_test)} Fake = {len(test_items)} images\n")
+
+    calib_ds = EvaluationImageDataset(
+        items=calib_items,
+        real_dir=real_dir,
+        fake_dir=fake_dir,
+        image_size=image_size,
+        transform=transform
+    )
+    test_ds = EvaluationImageDataset(
+        items=test_items,
+        real_dir=real_dir,
+        fake_dir=fake_dir,
+        image_size=image_size,
+        transform=transform
+    )
+
+    return calib_ds, test_ds
