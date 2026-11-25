@@ -729,7 +729,7 @@
   \end{columns}
 \end{frame}
 
-% ==================== SLIDE 17: 6.3 ĐÁNH GIÁ PHÂN TÁCH TRÊN TẬP TEST ====================
+% ==================== SLIDE 16: 6.3 ĐÁNH GIÁ PHÂN TÁCH TRÊN TẬP TEST ====================
 \begin{frame}{6.3 Đánh giá phân tách: Kết quả kiểm thử trên tập Test (30\%)}
   \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
   
@@ -759,40 +759,40 @@
 
   % Phần thân: Bảng số liệu chi tiết bên trái + Khối nhận xét khoa học bên phải
   \begin{columns}[T, totalwidth=\linewidth]
-    \begin{column}{0.50\linewidth}
+    \begin{column}{0.52\linewidth}
       \begin{cleanbox}[top=0.6mm, bottom=0.6mm]{Bảng chỉ số kiểm định trên tập Test độc lập (30\%)}
         \centering\tiny
         \setlength{\tabcolsep}{1.2pt}
-        \begin{tabular}{lccccc}
+        \begin{tabular}{lcccccc}
           \toprule
-          \textbf{Chỉ số} & \textbf{ROC-AUC} & \textbf{Bal.Acc} & \textbf{Recall} & \textbf{FPR} & \textbf{Ngưỡng $\tau^*$} \\
+          \textbf{Chỉ số} & \textbf{AUC} & \textbf{Bal.Acc} & \textbf{Recall} & \textbf{Precision} & \textbf{F1} & \textbf{Ngưỡng $\tau^*$} \\
           \midrule
-          $D^{(0)}$        & 31.23\% & 50.01\% & 0.06\%  & 0.04\%  & 3.707 \\
-          \textbf{$|D^{(0)}|$} & \textbf{68.76\%} & \textbf{64.01\%} & \textbf{69.25\%} & \textbf{41.23\%} & \textbf{2.381} \\
-          \textbf{$|\Delta^{01}|$} & \textbf{59.31\%} & \textbf{57.53\%} & \textbf{51.98\%} & \textbf{36.93\%} & \textbf{0.764} \\
+          $D^{(0)}$        & 31.23\% & 50.01\% & 0.06\%  & 9.52\%  & 0.13\%  & 3.707 \\
+          \textbf{$|D^{(0)}|$} & \textbf{68.76\%} & \textbf{64.01\%} & \textbf{69.25\%} & \textbf{9.33\%} & \textbf{16.44\%} & \textbf{2.381} \\
+          \textbf{$|\Delta^{01}|$} & \textbf{59.31\%} & \textbf{57.53\%} & \textbf{51.98\%} & \textbf{7.94\%} & \textbf{13.77\%} & \textbf{0.764} \\
           \bottomrule
         \end{tabular}
 
-        \vspace{0.25em}
+        \vspace{0.20em}
         \raggedright\tiny
         \textbf{\textcolor{SlateSub}{Ma trận nhầm lẫn $|D^{(0)}|$ tại ngưỡng $\tau^*=2.381$:}}\\
         \textcolor{MidnightNavy}{$\text{TP}=2,146$ (Bắt AI), $\text{FN}=953$, $\text{TN}=29,747$ (Thật), $\text{FP}=20,866$.}
       \end{cleanbox}
     \end{column}
     \begin{column}{0.46\linewidth}
-      \begin{accentbox}[top=0.6mm, bottom=0.6mm]{ElectricBlue}{Phân tích hiệu năng định lượng}
+      \begin{accentbox}[top=0.6mm, bottom=0.6mm]{ElectricBlue}{Phân tích Precision \& Đánh đổi thực tế}
         \raggedright\tiny
-        $\bullet$ \textbf{Vai trò của trị tuyệt đối:} Chỉ số $D^{(0)}$ đơn thuần chỉ đạt 31.23\% AUC do ảnh AI có chi phí phân tán hai chiều. Lấy trị tuyệt đối $|D^{(0)}|$ giúp tăng vọt AUC lên \textbf{68.76\%}.\\
-        \vspace{0.06em}
-        $\bullet$ \textbf{Độ ổn định ngoài mẫu:} Balanced Accuracy trên tập Test (64.01\%) tương đương tập Calibration (63.78\%), chứng minh ngưỡng $\tau^*$ duy trì khả năng khái quát hóa.\\
-        \vspace{0.06em}
-        $\bullet$ \textbf{Chỉ số vi phân $|\Delta^{01}|$:} Đạt AUC 59.31\%, phản ánh sự mất cân đối mã hóa giữa cấp vi mô $l=0$ và cấp ngữ cảnh $l=1$.
+        $\bullet$ \textbf{Recall cao (69.25\%):} Mô hình bắt đúng hơn $2/3$ số ảnh AI thử nghiệm ngoài mẫu, xác nhận độ nhạy tốt.\\
+        \vspace{0.05em}
+        $\bullet$ \textbf{Nguyên nhân Precision đạt 9.33\%:} Do tỷ lệ mất cân bằng dữ liệu lớn ($\approx$16:1, ảnh thật chiếm 94.2\%). Vùng chồng lấn phân phối khiến 20,866 ảnh thật bị cảnh báo nhầm (FP), số lượng này áp đảo 2,146 TP và kéo Precision xuống 9.33\%.\\
+        \vspace{0.05em}
+        $\bullet$ \textbf{Độ ổn định ngoài mẫu:} Balanced Accuracy đạt 64.01\% trên tập Test (so với 63.78\% ở Calib), chứng minh không bị overfit.
       \end{accentbox}
     \end{column}
   \end{columns}
 \end{frame}
 
-% ==================== SLIDE 18: 6.4 PHÂN TÍCH CHỈ SỐ |D^(0)| ====================
+% ==================== SLIDE 17: 6.4 PHÂN TÍCH CHỈ SỐ |D^(0)| ====================
 \begin{frame}{6.4 Phân tích chi tiết chỉ số $|D^{(0)}|$ trên tập Test}
   \framesubtitle{THỰC NGHIỆM ĐỘC LẬP \;\textbar\; INDEPENDENT EXPERIMENTAL EVALUATION}
   \begin{columns}[T, totalwidth=\linewidth]
@@ -817,7 +817,9 @@
       \begin{notebox}[equal height group=s18box, top=0.8mm, bottom=0.8mm]
         \raggedright\tiny
         \textbf{Phân loại tại $\tau^* = 2.381$:}\\
-        Nhận diện đúng \textbf{2,146 / 3,099 ảnh AI} (Recall 69.25\%), nhưng có tới \textbf{20,866 ảnh thật} bị dự đoán nhầm là AI (FPR 41.23\%) do vùng phân phối bị giao thoa.
+        $\bullet$ Bắt đúng \textbf{2,146 / 3,099 ảnh AI} ($\text{Recall} = \mathbf{69.25\%}$).\\
+        $\bullet$ Báo nhầm 20,866 ảnh thật ($\text{FPR} = 41.23\%$).\\
+        $\blacktriangleright$ $\text{Precision} = \mathbf{9.33\%}$, $\text{F1} = \mathbf{16.44\%}$ do ảnh hưởng từ tỷ lệ mất cân bằng dữ liệu 16:1.
       \end{notebox}
     \end{column}
     \begin{column}{0.35\linewidth}
@@ -826,14 +828,14 @@
         \raggedright\tiny
         \textbf{1. Thách thức phân tách:}\\
         Trái với kết quả phân tách gần như lý tưởng trên benchmark hẹp của paper gốc, trên tập dữ liệu gộp đa dạng, khoảng cách chi phí nén giữa ảnh thật và AI không tách biệt rõ ràng.
-        \vspace{0.18em}
+        \vspace{0.15em}
 
         \textbf{2. Nguyên nhân chồng lấn:}\\
         Sự kết hợp đa miền (CelebA, COCO, OpenImages) khiến độ phân tán entropy tự nhiên của ảnh thật rất lớn; đồng thời các bộ sinh AI hiện đại đã mô phỏng cấu trúc cục bộ tinh vi hơn.
-        \vspace{0.18em}
+        \vspace{0.15em}
 
-        \textbf{3. Đánh đổi giữa Recall và FPR:}\\
-        Ngưỡng $\tau^*$ tối ưu theo Youden's Index ưu tiên giữ Recall $\sim 69\%$, chấp nhận tỷ lệ báo động giả (FPR $\approx 41\%$) để hạn chế bỏ lọt ảnh nhân tạo.
+        \textbf{3. Đánh đổi Recall \& Precision:}\\
+        Ngưỡng $\tau^*$ tối ưu theo Youden's Index ưu tiên giữ Recall $\sim 69\%$, chấp nhận Precision thấp $\sim 9.3\%$ do tập nền ảnh thật áp đảo để tránh bỏ sót ảnh AI.
       \end{cleanbox}
     \end{column}
   \end{columns}
