@@ -397,11 +397,12 @@
 \begin{frame}{3.4 Mô hình hóa xác suất điểm ảnh và tính toán NLL}
   \framesubtitle{PHƯƠNG PHÁP NGHIÊN CỨU \;\textbar\; ZED METHODOLOGY}
   \begin{columns}[T, totalwidth=\linewidth]
-    \begin{column}{0.48\linewidth}
-      \begin{cleanbox}[top=0.5mm, bottom=0.5mm]{Discretized Logistic Mixture ($K=10$)}
-        \raggedright\tiny
+    \begin{column}{0.49\linewidth}
+      \begin{cleanbox}[equal height group=s7, top=1.0mm, bottom=1.0mm]{1. Discretized Logistic Mixture ($K=10$)}
+        \raggedright\scriptsize
+        \textbf{Mô hình hóa biến ngẫu nhiên rời rạc:}\\
         Mức xám $k \in \{0, \dots, 255\}$ tính xác suất bằng tích phân mật độ hỗn hợp logistic trên đoạn làm tròn $[k - 0.5, k + 0.5]$:
-        \vspace{-0.25em}
+        \vspace{-0.20em}
         {\tiny
         \begin{equation*}
           \begin{aligned}
@@ -409,28 +410,39 @@
             & - \sigma\left((k - 0.5 - \mu_m)/s_m\right) \Big]
           \end{aligned}
         \end{equation*}}
-        \vspace{-0.35em}
-        Mạng CNN nhận ngữ cảnh $X$ và xuất ra $3K = 30$ tham số $(w_m, \mu_m, s_m)$ cho mỗi điểm ảnh.
+        \vspace{-0.30em}
+        \textbf{Đầu ra từ mạng CNN:}\\
+        Mạng CNN nhận ngữ cảnh $X$ và xuất ra $3K = 30$ tham số $(w_m, \mu_m, s_m)$ cho mỗi điểm ảnh:
+        \vspace{0.10em}
+        \begin{itemize}\setlength{\itemsep}{0.08em}
+          \item Trọng số hỗn hợp $w_m$ ($\sum w_m = 1$ qua Softmax).
+          \item Kỳ vọng tâm $\mu_m$ và độ phân tán tỉ lệ $s_m > 0$.
+        \end{itemize}
       \end{cleanbox}
-      \vspace{0.08em}
-      \begin{accentbox}[top=0.5mm, bottom=0.5mm]{ElectricBlue}{Bản đồ chi phí nén thực tế (NLL Map)}
-        \raggedright\tiny
-        $\bullet$ \textbf{Chi phí tại từng pixel:} $\text{NLL}^{(l)}_{i,j} = -\log_2 P(x^{(l)}_{i,j} \mid X^{(l)}_{i,j})$.\\
-        \vspace{0.06em}
-        $\bullet$ \textbf{Chi phí trung bình toàn ảnh:} $\text{NLL}^{(l)} = \frac{1}{NM} \sum_{i,j} \text{NLL}^{(l)}_{i,j}$.\\
-        \vspace{0.06em}
-        $\blacktriangleright$ Thể hiện số bit thực tế cần tiêu tốn để mã hóa điểm ảnh.
-      \end{accentbox}
     \end{column}
-    \begin{column}{0.50\linewidth}
-      \centering
-      \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{figures/fig_subpixel_srec.pdf}\\[0.08em]
-      \tiny\textcolor{SlateSub}{Cơ chế dự đoán và xử lý song song nhóm $2 \times 2$ sub-pixel (SReC)}\\[0.15em]
-      \begin{notebox}[top=0.6mm, bottom=0.6mm]
-        \raggedright\tiny
-        \textbf{Ưu thế tính toán của SReC:}\\
-        Thay vì sinh tuần tự từng điểm ảnh như mô hình autoregressive 1D, SReC phân tách thành các nhóm $2 \times 2$ sub-pixel và xử lý song song toàn ảnh bằng CNN, loại bỏ nút thắt cổ chai về độ trễ suy luận.
-      \end{notebox}
+    \begin{column}{0.49\linewidth}
+      \begin{accentbox}[equal height group=s7, top=1.0mm, bottom=1.0mm]{ElectricBlue}{2. Chi phí nén thực tế (NLL Map)}
+        \raggedright\scriptsize
+        \textbf{Công thức Negative Log-Likelihood (NLL):}\\
+        Chi phí mã hóa tại từng pixel $(i, j)$ ở cấp phân giải $l$:
+        \vspace{-0.20em}
+        {\tiny
+        \begin{equation*}
+          \text{NLL}^{(l)}_{i,j} = -\log_2 P\left(x^{(l)}_{i,j} \;\middle|\; X^{(l)}_{i,j}\right)
+        \end{equation*}}
+        \vspace{-0.25em}
+        Chi phí nén trung bình trên toàn ảnh:
+        \vspace{-0.20em}
+        {\tiny
+        \begin{equation*}
+          \text{NLL}^{(l)} = \frac{1}{NM} \sum_{i=1}^N \sum_{j=1}^M \text{NLL}^{(l)}_{i,j}
+        \end{equation*}}
+        \vspace{-0.20em}
+        \textbf{Ý nghĩa theo lý thuyết Shannon:}\\
+        $\bullet$ Đại diện cho \textbf{số bit thực tế} cần tiêu tốn để mã hóa điểm ảnh theo mô hình xác suất học được.\\
+        \vspace{0.08em}
+        $\bullet$ \textbf{Bản đồ NLL Map:} Biểu diễn không gian trực quan những vùng điểm ảnh mà mô hình khó mã hóa.
+      \end{accentbox}
     \end{column}
   \end{columns}
 \end{frame}
